@@ -1,24 +1,148 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
+import {
+  Poppins_400Regular,
+  Poppins_500Medium,
+  Poppins_600SemiBold,
+  Poppins_700Bold,
+  useFonts,
+} from '@expo-google-fonts/poppins';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import 'react-native-reanimated';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { Provider, useDispatch } from 'react-redux';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { syncEngine } from '../src/services/syncEngine';
+import { store } from '../src/store';
+import { useAppSelector } from '../src/store/hooks';
+import { hydrateAuth } from '../src/store/slices/authSlice';
+import { hydrateExpenses } from '../src/store/slices/expenseSlice';
+import { colors } from '../src/theme';
 
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
+function RootLayoutNav() {
+  const router = useRouter();
+  const segments = useSegments();
+  const dispatch = useDispatch();
+  const { isAuthenticated, isLoading } = useAppSelector(
+    (state) => state.auth
+  );
+  const [isHydrating, setIsHydrating] = useState(true);
 
-export default function RootLayout() {
-  const colorScheme = useColorScheme();
+  // Hydrate auth and expenses from AsyncStorage
+  useEffect(() => {
+    const hydrate = async () => {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        const userJson = await AsyncStorage.getItem('user');
+
+        if (token && userJson) {
+          const user = JSON.parse(userJson);
+          dispatch(hydrateAuth({ user, token }));
+        } else {
+          dispatch(hydrateAuth(null));
+        }
+
+        // Hydrate expenses
+        const expensesJson = await AsyncStorage.getItem('expenses');
+        const pendingQueueJson = await AsyncStorage.getItem('pendingQueue');
+
+        const expenses = expensesJson ? JSON.parse(expensesJson) : [];
+        const pendingQueue = pendingQueueJson ? JSON.parse(pendingQueueJson) : [];
+
+        dispatch(hydrateExpenses({ items: expenses, pendingQueue }));
+      } catch (error) {
+        console.error('Hydration error:', error);
+        dispatch(hydrateAuth(null));
+      } finally {
+        setIsHydrating(false);
+      }
+    };
+
+    hydrate();
+  }, [dispatch]);
+
+  // Initialize sync engine
+  useEffect(() => {
+    syncEngine.init();
+    return () => syncEngine.cleanup();
+  }, []);
+
+  // Handle navigation based on auth state
+  useEffect(() => {
+    if (isHydrating || isLoading) return;
+
+    const inAuthGroup = segments[0] === '(auth)';
+
+    if (!isAuthenticated && !inAuthGroup) {
+      // Redirect to login if not authenticated
+      router.replace('/(auth)/login');
+    } else if (isAuthenticated && inAuthGroup) {
+      // Redirect to home if authenticated
+      router.replace('/(tabs)');
+    }
+  }, [isAuthenticated, segments, isHydrating, isLoading]);
+
+  if (isHydrating || isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
+    <>
+      <StatusBar style="dark" />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+        <Stack.Screen
+          name="expense/add"
+          options={{
+            presentation: 'modal',
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="expense/[id]"
+          options={{
+            presentation: 'modal',
+            headerShown: false,
+          }}
+        />
       </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    </>
   );
 }
+
+export default function RootLayout() {
+  const [fontsLoaded] = useFonts({
+    Poppins_400Regular,
+    Poppins_500Medium,
+    Poppins_600SemiBold,
+    Poppins_700Bold,
+  });
+
+  if (!fontsLoaded) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  return (
+    <Provider store={store}>
+      <RootLayoutNav />
+    </Provider>
+  );
+}
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+  },
+});

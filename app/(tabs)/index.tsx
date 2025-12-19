@@ -1,98 +1,292 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { format } from 'date-fns';
+import { useRouter } from 'expo-router';
+import React, { useCallback, useEffect } from 'react';
+import {
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useDispatch } from 'react-redux';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { GradientHeader } from '../../src/components/common/GradientHeader';
+import { BalanceCard } from '../../src/components/home/BalanceCard';
+import { SpendingWallet } from '../../src/components/home/SpendingWallet';
+import { TransactionItem } from '../../src/components/home/TransactionItem';
+import { SyncIndicator } from '../../src/components/sync/SyncIndicator';
+import { syncEngine } from '../../src/services/syncEngine';
+import { useAppSelector } from '../../src/store/hooks';
+import { borderRadius, colors, shadows, spacing, typography } from '../../src/theme';
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    const router = useRouter();
+    const dispatch = useDispatch();
+    const insets = useSafeAreaInsets();
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
-  );
+    const { user } = useAppSelector((state) => state.auth);
+    const { items, totalExpense, totalIncome } = useAppSelector(
+        (state) => state.expenses
+    );
+    const { isOnline, isSyncing, pendingCount } = useAppSelector(
+        (state) => state.sync
+    );
+
+    const [refreshing, setRefreshing] = React.useState(false);
+
+    // Recent transactions (last 5)
+    const recentTransactions = items.slice(0, 5);
+
+    // Calculate balance
+    const balance = totalIncome - totalExpense;
+
+    // Placeholder for percentage change (would come from insights API)
+    const percentageChange = -67; // Mock data
+
+    const onRefresh = useCallback(async () => {
+        setRefreshing(true);
+        await syncEngine.fullSync();
+        setRefreshing(false);
+    }, []);
+
+    useEffect(() => {
+        // Initial data fetch
+        syncEngine.fetchFromServer();
+    }, []);
+
+    const today = format(new Date(), 'EEE, dd MMM');
+
+    return (
+        <View style={styles.container}>
+            <ScrollView
+                style={styles.scrollView}
+                contentContainerStyle={{ paddingBottom: 120 }}
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        tintColor={colors.primary}
+                    />
+                }
+            >
+                {/* Gradient Header */}
+                <GradientHeader>
+                    {/* Top Bar */}
+                    <View style={styles.topBar}>
+                        <TouchableOpacity style={styles.iconButton}>
+                            <Ionicons name="settings-outline" size={24} color={colors.textMain} />
+                        </TouchableOpacity>
+
+                        <View style={styles.dateContainer}>
+                            <Ionicons name="calendar-outline" size={16} color={colors.textMain} />
+                            <Text style={styles.dateText}>{today}</Text>
+                        </View>
+
+                        <TouchableOpacity style={styles.iconButton}>
+                            <Ionicons name="notifications-outline" size={24} color={colors.textMain} />
+                            {pendingCount > 0 && (
+                                <View style={styles.badge}>
+                                    <Text style={styles.badgeText}>{pendingCount}</Text>
+                                </View>
+                            )}
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Sync Indicator */}
+                    <View style={styles.syncContainer}>
+                        <SyncIndicator
+                            isOnline={isOnline}
+                            isSyncing={isSyncing}
+                            pendingCount={pendingCount}
+                        />
+                    </View>
+
+                    {/* Balance Card */}
+                    <BalanceCard
+                        totalSpend={totalExpense}
+                        percentageChange={percentageChange}
+                        currency={user?.currency}
+                    />
+                </GradientHeader>
+
+                {/* Content */}
+                <View style={styles.content}>
+                    {/* Spending Wallet */}
+                    <SpendingWallet
+                        balance={balance}
+                        currency={user?.currency}
+                        onPress={() => router.push('/(tabs)/analytics')}
+                    />
+
+                    {/* Recent Transactions */}
+                    <View style={styles.section}>
+                        <View style={styles.sectionHeader}>
+                            <Text style={styles.sectionTitle}>Recent Transactions</Text>
+                            <TouchableOpacity onPress={() => router.push('/(tabs)/transactions')}>
+                                <Text style={styles.seeAllText}>See All</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        {recentTransactions.length === 0 ? (
+                            <View style={styles.emptyState}>
+                                <Text style={styles.emptyIcon}>📝</Text>
+                                <Text style={styles.emptyText}>No transactions yet</Text>
+                                <Text style={styles.emptySubtext}>
+                                    Tap the + button to add your first expense
+                                </Text>
+                            </View>
+                        ) : (
+                            <View style={styles.transactionsList}>
+                                {recentTransactions.map((transaction) => (
+                                    <TransactionItem
+                                        key={transaction.localId}
+                                        id={transaction.localId}
+                                        amount={transaction.amount}
+                                        type={transaction.type}
+                                        category={transaction.category}
+                                        description={transaction.description}
+                                        date={transaction.date}
+                                        currency={user?.currency}
+                                        onPress={() => router.push(`/expense/${transaction.localId}`)}
+                                    />
+                                ))}
+                            </View>
+                        )}
+                    </View>
+                </View>
+            </ScrollView>
+
+            {/* FAB Button */}
+            <TouchableOpacity
+                style={[styles.fab, { bottom: 100 + insets.bottom }]}
+                onPress={() => router.push('/expense/add')}
+                activeOpacity={0.8}
+            >
+                <Ionicons name="add" size={32} color={colors.textWhite} />
+            </TouchableOpacity>
+        </View>
+    );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
+    container: {
+        flex: 1,
+        backgroundColor: colors.background,
+    },
+    scrollView: {
+        flex: 1,
+    },
+    topBar: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: spacing.lg,
+    },
+    iconButton: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: 'rgba(255, 255, 255, 0.3)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    badge: {
+        position: 'absolute',
+        top: 0,
+        right: 0,
+        backgroundColor: colors.error,
+        borderRadius: 10,
+        minWidth: 18,
+        height: 18,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    badgeText: {
+        color: colors.textWhite,
+        fontSize: 10,
+        fontWeight: 'bold',
+    },
+    dateContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255, 255, 255, 0.3)',
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        borderRadius: borderRadius.full,
+        gap: spacing.xs,
+    },
+    dateText: {
+        fontFamily: typography.fontFamily.medium,
+        fontSize: typography.sizes.sm,
+        color: colors.textMain,
+    },
+    syncContainer: {
+        alignItems: 'center',
+        marginBottom: spacing.sm,
+    },
+    content: {
+        paddingHorizontal: spacing.lg,
+        marginTop: -spacing.xl,
+    },
+    section: {
+        marginTop: spacing.xxl,
+    },
+    sectionHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: spacing.lg,
+    },
+    sectionTitle: {
+        fontFamily: typography.fontFamily.semiBold,
+        fontSize: typography.sizes.xl,
+        color: colors.textMain,
+    },
+    seeAllText: {
+        fontFamily: typography.fontFamily.medium,
+        fontSize: typography.sizes.sm,
+        color: colors.primary,
+    },
+    transactionsList: {
+        gap: spacing.sm,
+    },
+    emptyState: {
+        alignItems: 'center',
+        paddingVertical: spacing.xxxl,
+        backgroundColor: colors.cardBg,
+        borderRadius: borderRadius.xl,
+        ...shadows.card,
+    },
+    emptyIcon: {
+        fontSize: 48,
+        marginBottom: spacing.md,
+    },
+    emptyText: {
+        fontFamily: typography.fontFamily.semiBold,
+        fontSize: typography.sizes.lg,
+        color: colors.textMain,
+        marginBottom: spacing.xs,
+    },
+    emptySubtext: {
+        fontFamily: typography.fontFamily.regular,
+        fontSize: typography.sizes.sm,
+        color: colors.textSecondary,
+        textAlign: 'center',
+        paddingHorizontal: spacing.xl,
+    },
+    fab: {
+        position: 'absolute',
+        right: spacing.xl,
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        backgroundColor: colors.primaryDark,
+        alignItems: 'center',
+        justifyContent: 'center',
+        ...shadows.fab,
+    },
 });
