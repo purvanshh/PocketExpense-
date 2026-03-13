@@ -10,18 +10,30 @@ const {
     getInsights,
 } = require('../controllers/expenseController');
 const { protect } = require('../middleware/auth');
+const { validate, validateQuery } = require('../middleware/validate');
+const {
+    createExpenseSchema,
+    updateExpenseSchema,
+    expenseQuerySchema,
+    syncExpensesSchema,
+} = require('../validators/expense.validator');
 
-// All routes are protected
 router.use(protect);
 
-// Insights route (must be before /:id to avoid conflict)
+// Insights (must be before /:id)
 router.get('/insights', getInsights);
 
 // Sync route for offline data
-router.post('/sync', syncExpenses);
+router.post('/sync', validate(syncExpensesSchema), syncExpenses);
 
 // CRUD routes
-router.route('/').get(getExpenses).post(createExpense);
-router.route('/:id').get(getExpense).put(updateExpense).delete(deleteExpense);
+router.route('/')
+    .get(validateQuery(expenseQuerySchema), getExpenses)
+    .post(validate(createExpenseSchema), createExpense);
+
+router.route('/:id')
+    .get(getExpense)
+    .put(validate(updateExpenseSchema), updateExpense)
+    .delete(deleteExpense);
 
 module.exports = router;

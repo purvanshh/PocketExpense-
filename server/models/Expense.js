@@ -60,6 +60,19 @@ const expenseSchema = new mongoose.Schema(
             type: Boolean,
             default: false,
         },
+        frequency: {
+            type: String,
+            enum: ['daily', 'weekly', 'monthly', null],
+            default: null,
+        },
+        nextRunDate: {
+            type: Date,
+            default: null,
+        },
+        lastProcessedDate: {
+            type: Date,
+            default: null,
+        },
         // For offline sync support
         localId: {
             type: String,
@@ -76,8 +89,12 @@ const expenseSchema = new mongoose.Schema(
     }
 );
 
-// Index for faster queries
+// Indexes for faster queries
 expenseSchema.index({ user: 1, date: -1 });
 expenseSchema.index({ user: 1, category: 1 });
+expenseSchema.index({ user: 1, type: 1, date: -1 });
+expenseSchema.index({ user: 1, category: 1, type: 1, date: -1 });
+expenseSchema.index({ isRecurring: 1, nextRunDate: 1 });
+expenseSchema.index({ user: 1, localId: 1 });
 
 module.exports = mongoose.model('Expense', expenseSchema);
