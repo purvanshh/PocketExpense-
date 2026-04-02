@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: pocketexpense-api
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node index.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRE
+        value: 7d
+      - key: PORT
+        value: 5001
+      - key: RATE_LIMIT_MAX
+        value: 100

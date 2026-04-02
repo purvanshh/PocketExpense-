@@ -1,0 +1,259 @@
+{
+    "info": {
+        "name": "PocketExpense+ API",
+        "description": "Complete API documentation for PocketExpense+ financial tracking system",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "variable": [
+        { "key": "baseUrl", "value": "http://localhost:5001/api" },
+        { "key": "token", "value": "" }
+    ],
+    "item": [
+        {
+            "name": "Auth",
+            "item": [
+                {
+                    "name": "Register",
+                    "request": {
+                        "method": "POST",
+                        "url": "{{baseUrl}}/auth/register",
+                        "header": [{ "key": "Content-Type", "value": "application/json" }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"name\": \"John Doe\", \"email\": \"john@example.com\", \"password\": \"password123\"}"
+                        }
+                    }
+                },
+                {
+                    "name": "Login",
+                    "request": {
+                        "method": "POST",
+                        "url": "{{baseUrl}}/auth/login",
+                        "header": [{ "key": "Content-Type", "value": "application/json" }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"email\": \"john@example.com\", \"password\": \"password123\"}"
+                        }
+                    },
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": ["var json = pm.response.json(); if(json.data && json.data.token) { pm.collectionVariables.set('token', json.data.token); }"]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Get Profile",
+                    "request": {
+                        "method": "GET",
+                        "url": "{{baseUrl}}/auth/profile",
+                        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+                    }
+                },
+                {
+                    "name": "Update Profile",
+                    "request": {
+                        "method": "PUT",
+                        "url": "{{baseUrl}}/auth/profile",
+                        "header": [
+                            { "key": "Content-Type", "value": "application/json" },
+                            { "key": "Authorization", "value": "Bearer {{token}}" }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"name\": \"John Updated\", \"budgetLimit\": 10000, \"currency\": \"INR\"}"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Expenses",
+            "item": [
+                {
+                    "name": "List Expenses (Paginated + Filtered)",
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/expenses?page=1&limit=20&sort=-date",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["expenses"],
+                            "query": [
+                                { "key": "page", "value": "1" },
+                                { "key": "limit", "value": "20" },
+                                { "key": "category", "value": "food", "disabled": true },
+                                { "key": "type", "value": "expense", "disabled": true },
+                                { "key": "startDate", "value": "2026-01-01", "disabled": true },
+                                { "key": "endDate", "value": "2026-12-31", "disabled": true },
+                                { "key": "sort", "value": "-date" }
+                            ]
+                        },
+                        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+                    }
+                },
+                {
+                    "name": "Create Expense",
+                    "request": {
+                        "method": "POST",
+                        "url": "{{baseUrl}}/expenses",
+                        "header": [
+                            { "key": "Content-Type", "value": "application/json" },
+                            { "key": "Authorization", "value": "Bearer {{token}}" }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"amount\": 250, \"type\": \"expense\", \"category\": \"food\", \"description\": \"Lunch\", \"paymentMethod\": \"upi\"}"
+                        }
+                    }
+                },
+                {
+                    "name": "Create Recurring Expense",
+                    "request": {
+                        "method": "POST",
+                        "url": "{{baseUrl}}/expenses",
+                        "header": [
+                            { "key": "Content-Type", "value": "application/json" },
+                            { "key": "Authorization", "value": "Bearer {{token}}" }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"amount\": 499, \"type\": \"expense\", \"category\": \"subscription\", \"description\": \"Netflix\", \"paymentMethod\": \"credit_card\", \"isRecurring\": true, \"frequency\": \"monthly\"}"
+                        }
+                    }
+                },
+                {
+                    "name": "Get Single Expense",
+                    "request": {
+                        "method": "GET",
+                        "url": "{{baseUrl}}/expenses/:id",
+                        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+                    }
+                },
+                {
+                    "name": "Update Expense",
+                    "request": {
+                        "method": "PUT",
+                        "url": "{{baseUrl}}/expenses/:id",
+                        "header": [
+                            { "key": "Content-Type", "value": "application/json" },
+                            { "key": "Authorization", "value": "Bearer {{token}}" }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"amount\": 300, \"description\": \"Updated lunch\"}"
+                        }
+                    }
+                },
+                {
+                    "name": "Delete Expense",
+                    "request": {
+                        "method": "DELETE",
+                        "url": "{{baseUrl}}/expenses/:id",
+                        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+                    }
+                },
+                {
+                    "name": "Bulk Sync (Offline)",
+                    "request": {
+                        "method": "POST",
+                        "url": "{{baseUrl}}/expenses/sync",
+                        "header": [
+                            { "key": "Content-Type", "value": "application/json" },
+                            { "key": "Authorization", "value": "Bearer {{token}}" }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"expenses\": [{\"amount\": 100, \"type\": \"expense\", \"category\": \"food\", \"localId\": \"local-1\"}, {\"amount\": 200, \"type\": \"expense\", \"category\": \"travel\", \"localId\": \"local-2\"}]}"
+                        }
+                    }
+                },
+                {
+                    "name": "Basic Insights",
+                    "request": {
+                        "method": "GET",
+                        "url": "{{baseUrl}}/expenses/insights",
+                        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Budgets",
+            "item": [
+                {
+                    "name": "List Budgets (Current Month)",
+                    "request": {
+                        "method": "GET",
+                        "url": "{{baseUrl}}/budgets",
+                        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+                    }
+                },
+                {
+                    "name": "Create Budget",
+                    "request": {
+                        "method": "POST",
+                        "url": "{{baseUrl}}/budgets",
+                        "header": [
+                            { "key": "Content-Type", "value": "application/json" },
+                            { "key": "Authorization", "value": "Bearer {{token}}" }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"category\": \"food\", \"amount\": 5000, \"month\": 3, \"year\": 2026}"
+                        }
+                    }
+                },
+                {
+                    "name": "Update Budget",
+                    "request": {
+                        "method": "PUT",
+                        "url": "{{baseUrl}}/budgets/:id",
+                        "header": [
+                            { "key": "Content-Type", "value": "application/json" },
+                            { "key": "Authorization", "value": "Bearer {{token}}" }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\"amount\": 7000}"
+                        }
+                    }
+                },
+                {
+                    "name": "Delete Budget",
+                    "request": {
+                        "method": "DELETE",
+                        "url": "{{baseUrl}}/budgets/:id",
+                        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Insights",
+            "item": [
+                {
+                    "name": "Advanced Insights",
+                    "request": {
+                        "method": "GET",
+                        "url": "{{baseUrl}}/insights/advanced",
+                        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "System",
+            "item": [
+                {
+                    "name": "Health Check",
+                    "request": {
+                        "method": "GET",
+                        "url": "{{baseUrl}}/health"
+                    }
+                }
+            ]
+        }
+    ]
+}

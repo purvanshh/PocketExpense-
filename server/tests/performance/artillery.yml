@@ -1,0 +1,107 @@
+config:
+  target: "http://localhost:5001"
+  phases:
+    # Warm-up phase
+    - duration: 30
+      arrivalRate: 5
+      name: "Warm up"
+    # Ramp to 100 concurrent users
+    - duration: 60
+      arrivalRate: 20
+      rampTo: 100
+      name: "Ramp up load"
+    # Sustained load (500 req/min ≈ 8.3/sec)
+    - duration: 120
+      arrivalRate: 100
+      name: "Sustained load"
+    # Burst traffic on insights
+    - duration: 30
+      arrivalRate: 200
+      name: "Burst traffic"
+  defaults:
+    headers:
+      Content-Type: "application/json"
+  variables:
+    token: "" # Set via beforeScenario or use environment variable
+  ensure:
+    p95: 500
+    p99: 1000
+
+scenarios:
+  - name: "Register + Login flow"
+    weight: 10
+    flow:
+      - post:
+          url: "/api/auth/register"
+          json:
+            name: "Perf User {{ $randomNumber() }}"
+            email: "perf{{ $randomNumber() }}@test.com"
+            password: "password123"
+          capture:
+            json: "$.data.token"
+            as: "authToken"
+      - get:
+          url: "/api/auth/profile"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+
+  - name: "Create and list expenses"
+    weight: 40
+    flow:
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "perftest@test.com"
+            password: "password123"
+          capture:
+            json: "$.data.token"
+            as: "authToken"
+      - post:
+          url: "/api/expenses"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          json:
+            amount: "{{ $randomNumber(10, 5000) }}"
+            type: "expense"
+            category: "food"
+            paymentMethod: "cash"
+      - get:
+          url: "/api/expenses?page=1&limit=20"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+
+  - name: "Insights endpoint (heavy)"
+    weight: 30
+    flow:
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "perftest@test.com"
+            password: "password123"
+          capture:
+            json: "$.data.token"
+            as: "authToken"
+      - get:
+          url: "/api/expenses/insights"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+      - get:
+          url: "/api/insights/advanced"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+
+  - name: "Budget operations"
+    weight: 20
+    flow:
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "perftest@test.com"
+            password: "password123"
+          capture:
+            json: "$.data.token"
+            as: "authToken"
+      - get:
+          url: "/api/budgets"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
