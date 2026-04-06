@@ -12,7 +12,7 @@ interface AmountInputProps {
 export const AmountInput: React.FC<AmountInputProps> = ({
     value,
     onChangeText,
-    currency = '$',
+    currency = '₹',
     placeholder = '0.00',
 }) => {
     const handleChange = (text: string) => {

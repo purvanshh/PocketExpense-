@@ -64,7 +64,7 @@ export default function RegisterScreen() {
             console.log('✅ Registration successful!');
             console.log('📦 Response data:', JSON.stringify(response.data, null, 2));
 
-            const { _id, name: userName, email: userEmail, budgetLimit, currency, token } = response.data;
+            const { _id, name: userName, email: userEmail, budgetLimit, currency, token } = response.data.data;
 
             dispatch(
                 setCredentials({

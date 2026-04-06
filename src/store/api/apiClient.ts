@@ -5,12 +5,10 @@ import axios from 'axios';
 // you need to use your computer's actual IP address
 // Find your IP: run `ifconfig` or check System Preferences > Network
 
-// Your computer's IP address on the local network
-const YOUR_IP = '10.10.2.115';
+const YOUR_IP = '10.230.199.207';
 const PORT = '5001';
 
 const BASE_URL = `http://${YOUR_IP}:${PORT}/api`;
-console.log('API Base URL:', BASE_URL);
 
 const apiClient = axios.create({
     baseURL: BASE_URL,

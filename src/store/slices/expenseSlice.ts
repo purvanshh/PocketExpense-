@@ -1,6 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { v4 as uuidv4 } from 'uuid';
+import { createSlice, current, PayloadAction } from '@reduxjs/toolkit';
+// Simple unique ID generator
+const generateId = () => {
+    return Date.now().toString(36) + Math.random().toString(36).substr(2);
+};
+
+
 
 export interface Expense {
     _id?: string;
@@ -12,6 +17,8 @@ export interface Expense {
     paymentMethod: string;
     date: string;
     isRecurring: boolean;
+    frequency?: 'daily' | 'weekly' | 'monthly' | null;
+    nextRunDate?: string | null;
     syncStatus: 'synced' | 'pending' | 'conflict';
 }
 
@@ -74,7 +81,7 @@ const expenseSlice = createSlice({
         addExpense: (state, action: PayloadAction<Omit<Expense, 'localId' | 'syncStatus'>>) => {
             const newExpense: Expense = {
                 ...action.payload,
-                localId: uuidv4(),
+                localId: generateId(),
                 syncStatus: 'pending',
             };
             state.items.unshift(newExpense);
@@ -84,7 +91,7 @@ const expenseSlice = createSlice({
             state.totalExpense = totals.totalExpense;
             state.totalIncome = totals.totalIncome;
 
-            persistExpenses(state.items, state.pendingQueue);
+            persistExpenses(current(state.items), current(state.pendingQueue));
         },
         updateExpense: (
             state,
@@ -114,7 +121,7 @@ const expenseSlice = createSlice({
                 state.totalExpense = totals.totalExpense;
                 state.totalIncome = totals.totalIncome;
 
-                persistExpenses(state.items, state.pendingQueue);
+                persistExpenses(current(state.items), current(state.pendingQueue));
             }
         },
         deleteExpense: (state, action: PayloadAction<string>) => {
@@ -145,7 +152,7 @@ const expenseSlice = createSlice({
             state.pendingQueue = state.pendingQueue.filter(
                 (item) => item.localId !== action.payload.localId
             );
-            persistExpenses(state.items, state.pendingQueue);
+            persistExpenses(current(state.items), state.pendingQueue);
         },
         clearPendingQueue: (state) => {
             state.pendingQueue = [];

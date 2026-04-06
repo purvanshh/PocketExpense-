@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
     Alert,
+    Platform,
     ScrollView,
     StyleSheet,
     Text,
@@ -196,11 +197,69 @@ export default function AccountScreen() {
                     </Card>
                 </View>
 
+                {/* Quick Actions */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Quick Actions</Text>
+
+                    <Card style={styles.settingsCard}>
+                        <TouchableOpacity
+                            style={styles.settingsItem}
+                            onPress={() => router.push('/budgets')}
+                        >
+                            <View style={styles.settingsItemLeft}>
+                                <View style={[styles.settingsIcon, { backgroundColor: '#EDE7F6' }]}>
+                                    <Ionicons name="wallet" size={20} color={colors.primary} />
+                                </View>
+                                <Text style={styles.settingsItemText}>Category Budgets</Text>
+                            </View>
+                            <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+                        </TouchableOpacity>
+
+                        <View style={styles.divider} />
+
+                        <TouchableOpacity
+                            style={styles.settingsItem}
+                            onPress={() => router.push('/insights')}
+                        >
+                            <View style={styles.settingsItemLeft}>
+                                <View style={[styles.settingsIcon, { backgroundColor: colors.warningBg }]}>
+                                    <Ionicons name="bulb" size={20} color={colors.warning} />
+                                </View>
+                                <Text style={styles.settingsItemText}>Smart Insights</Text>
+                            </View>
+                            <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+                        </TouchableOpacity>
+                    </Card>
+                </View>
+
                 {/* Settings Section */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Settings</Text>
 
                     <Card style={styles.settingsCard}>
+                        {Platform.OS === 'android' && (
+                            <>
+                                <TouchableOpacity
+                                    style={styles.settingsItem}
+                                    onPress={() => router.push('/settings/sms-detection')}
+                                >
+                                    <View style={styles.settingsItemLeft}>
+                                        <View style={[styles.settingsIcon, { backgroundColor: '#E8F5E9' }]}>
+                                            <Ionicons name="chatbubble-ellipses" size={20} color="#388E3C" />
+                                        </View>
+                                        <View>
+                                            <Text style={styles.settingsItemText}>SMS Detection</Text>
+                                            <Text style={styles.settingsSubText}>
+                                                Auto-detect bank transactions
+                                            </Text>
+                                        </View>
+                                    </View>
+                                    <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+                                </TouchableOpacity>
+                                <View style={styles.divider} />
+                            </>
+                        )}
+
                         <TouchableOpacity style={styles.settingsItem}>
                             <View style={styles.settingsItemLeft}>
                                 <View style={[styles.settingsIcon, { backgroundColor: colors.infoBg }]}>
@@ -428,6 +487,12 @@ const styles = StyleSheet.create({
         fontFamily: typography.fontFamily.medium,
         fontSize: typography.sizes.md,
         color: colors.textMain,
+    },
+    settingsSubText: {
+        fontFamily: typography.fontFamily.regular,
+        fontSize: typography.sizes.xs,
+        color: colors.textSecondary,
+        marginTop: 1,
     },
     settingsValue: {
         fontFamily: typography.fontFamily.regular,

@@ -43,7 +43,7 @@ export default function LoginScreen() {
                 password,
             });
 
-            const { _id, name, email: userEmail, budgetLimit, currency, avatar, token } = response.data;
+            const { _id, name, email: userEmail, budgetLimit, currency, avatar, token } = response.data.data;
 
             dispatch(
                 setCredentials({

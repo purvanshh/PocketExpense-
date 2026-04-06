@@ -42,10 +42,12 @@ export default function AddExpenseScreen() {
     const [type, setType] = useState<'expense' | 'income'>('expense');
     const [category, setCategory] = useState('food');
     const [description, setDescription] = useState('');
-    const [paymentMethod, setPaymentMethod] = useState('cash');
+    const [paymentMethod, setPaymentMethod] = useState('upi');
     const [date, setDate] = useState(new Date());
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isRecurring, setIsRecurring] = useState(false);
+    const [frequency, setFrequency] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
 
     const handleSubmit = async () => {
         const amountValue = parseFloat(amount);
@@ -65,7 +67,6 @@ export default function AddExpenseScreen() {
         // Generate category label as description if empty
         const desc = description.trim() || categories[category as keyof typeof categories]?.label || '';
 
-        // Add to local store immediately (offline-first)
         dispatch(
             addExpense({
                 amount: amountValue,
@@ -74,7 +75,8 @@ export default function AddExpenseScreen() {
                 description: desc,
                 paymentMethod,
                 date: date.toISOString(),
-                isRecurring: false,
+                isRecurring,
+                frequency: isRecurring ? frequency : null,
             })
         );
 
@@ -84,7 +86,7 @@ export default function AddExpenseScreen() {
             if (totalExpense + amountValue > user.budgetLimit) {
                 Alert.alert(
                     '⚠️ Budget Alert',
-                    `This expense will put you over your monthly budget of $${user.budgetLimit}!`,
+                    `This expense will put you over your monthly budget of ₹${user.budgetLimit}!`,
                     [{ text: 'OK' }]
                 );
             }
@@ -164,7 +166,7 @@ export default function AddExpenseScreen() {
                 <AmountInput
                     value={amount}
                     onChangeText={setAmount}
-                    currency="$"
+                    currency="₹"
                 />
 
                 {/* Category Selection */}
@@ -241,6 +243,55 @@ export default function AddExpenseScreen() {
                             </TouchableOpacity>
                         ))}
                     </View>
+                </View>
+
+                {/* Recurring Toggle */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Recurring</Text>
+                    <TouchableOpacity
+                        style={styles.recurringToggle}
+                        onPress={() => setIsRecurring(!isRecurring)}
+                        activeOpacity={0.7}
+                    >
+                        <View style={styles.recurringLeft}>
+                            <Ionicons
+                                name="repeat"
+                                size={20}
+                                color={isRecurring ? colors.primary : colors.textSecondary}
+                            />
+                            <Text style={[
+                                styles.recurringText,
+                                isRecurring && { color: colors.textMain }
+                            ]}>
+                                Make this recurring
+                            </Text>
+                        </View>
+                        <View style={[styles.toggle, isRecurring && styles.toggleActive]}>
+                            <View style={[styles.toggleThumb, isRecurring && styles.toggleThumbActive]} />
+                        </View>
+                    </TouchableOpacity>
+
+                    {isRecurring && (
+                        <View style={styles.frequencyContainer}>
+                            {(['daily', 'weekly', 'monthly'] as const).map((freq) => (
+                                <TouchableOpacity
+                                    key={freq}
+                                    style={[
+                                        styles.frequencyButton,
+                                        frequency === freq && styles.frequencyButtonActive,
+                                    ]}
+                                    onPress={() => setFrequency(freq)}
+                                >
+                                    <Text style={[
+                                        styles.frequencyText,
+                                        frequency === freq && styles.frequencyTextActive,
+                                    ]}>
+                                        {freq.charAt(0).toUpperCase() + freq.slice(1)}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    )}
                 </View>
 
                 {/* Submit Button */}
@@ -376,6 +427,67 @@ const styles = StyleSheet.create({
         color: colors.textSecondary,
     },
     paymentTextActive: {
+        color: colors.textWhite,
+    },
+    recurringToggle: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: colors.inputBg,
+        borderRadius: borderRadius.lg,
+        padding: spacing.lg,
+    },
+    recurringLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.md,
+    },
+    recurringText: {
+        fontFamily: typography.fontFamily.medium,
+        fontSize: typography.sizes.md,
+        color: colors.textSecondary,
+    },
+    toggle: {
+        width: 48,
+        height: 28,
+        borderRadius: 14,
+        backgroundColor: colors.textLight,
+        padding: 2,
+        justifyContent: 'center',
+    },
+    toggleActive: {
+        backgroundColor: colors.primary,
+    },
+    toggleThumb: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        backgroundColor: colors.cardBg,
+    },
+    toggleThumbActive: {
+        alignSelf: 'flex-end',
+    },
+    frequencyContainer: {
+        flexDirection: 'row',
+        gap: spacing.sm,
+        marginTop: spacing.md,
+    },
+    frequencyButton: {
+        flex: 1,
+        paddingVertical: spacing.md,
+        alignItems: 'center',
+        backgroundColor: colors.inputBg,
+        borderRadius: borderRadius.lg,
+    },
+    frequencyButtonActive: {
+        backgroundColor: colors.primary,
+    },
+    frequencyText: {
+        fontFamily: typography.fontFamily.medium,
+        fontSize: typography.sizes.sm,
+        color: colors.textSecondary,
+    },
+    frequencyTextActive: {
         color: colors.textWhite,
     },
     submitButton: {

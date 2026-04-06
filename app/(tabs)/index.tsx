@@ -1,18 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
     RefreshControl,
     ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,
-    View,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDispatch } from 'react-redux';
 
+import { CustomDatePicker } from '../../src/components/common/CustomDatePicker';
 import { GradientHeader } from '../../src/components/common/GradientHeader';
 import { BalanceCard } from '../../src/components/home/BalanceCard';
 import { SpendingWallet } from '../../src/components/home/SpendingWallet';
@@ -35,9 +36,12 @@ export default function HomeScreen() {
         (state) => state.sync
     );
 
-    const [refreshing, setRefreshing] = React.useState(false);
+    const [refreshing, setRefreshing] = useState(false);
+    const [selectedDate, setSelectedDate] = useState(new Date());
+    const [showDatePicker, setShowDatePicker] = useState(false);
 
     // Recent transactions (last 5)
+    // Filter by selected month/year if needed, but for now showing all recent
     const recentTransactions = items.slice(0, 5);
 
     // Calculate balance
@@ -57,7 +61,11 @@ export default function HomeScreen() {
         syncEngine.fetchFromServer();
     }, []);
 
-    const today = format(new Date(), 'EEE, dd MMM');
+    const handleDateSelect = (date: Date) => {
+        setSelectedDate(date);
+        setShowDatePicker(false);
+        // Here you would typically filter data by this date
+    };
 
     return (
         <View style={styles.container}>
@@ -77,16 +85,25 @@ export default function HomeScreen() {
                 <GradientHeader>
                     {/* Top Bar */}
                     <View style={styles.topBar}>
-                        <TouchableOpacity style={styles.iconButton}>
+                        <TouchableOpacity
+                            style={styles.iconButton}
+                            onPress={() => router.push('/(tabs)/account')}
+                        >
                             <Ionicons name="settings-outline" size={24} color={colors.textMain} />
                         </TouchableOpacity>
 
-                        <View style={styles.dateContainer}>
+                        <TouchableOpacity
+                            style={styles.dateContainer}
+                            onPress={() => setShowDatePicker(true)}
+                        >
                             <Ionicons name="calendar-outline" size={16} color={colors.textMain} />
-                            <Text style={styles.dateText}>{today}</Text>
-                        </View>
+                            <Text style={styles.dateText}>{format(selectedDate, 'EEE, dd MMM')}</Text>
+                        </TouchableOpacity>
 
-                        <TouchableOpacity style={styles.iconButton}>
+                        <TouchableOpacity
+                            style={styles.iconButton}
+                            onPress={() => router.push('/notifications')}
+                        >
                             <Ionicons name="notifications-outline" size={24} color={colors.textMain} />
                             {pendingCount > 0 && (
                                 <View style={styles.badge}>
@@ -95,6 +112,14 @@ export default function HomeScreen() {
                             )}
                         </TouchableOpacity>
                     </View>
+
+                    {/* Custom Date Picker Modal */}
+                    <CustomDatePicker
+                        visible={showDatePicker}
+                        onClose={() => setShowDatePicker(false)}
+                        onSelect={handleDateSelect}
+                        selectedDate={selectedDate}
+                    />
 
                     {/* Sync Indicator */}
                     <View style={styles.syncContainer}>

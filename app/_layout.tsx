@@ -9,14 +9,17 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 import { Provider, useDispatch } from 'react-redux';
 
 import { syncEngine } from '../src/services/syncEngine';
+import { initSmsListener, stopSmsListener } from '../src/services/smsListener';
+import SmsTransactionModal from '../src/components/sms/SmsTransactionModal';
 import { store } from '../src/store';
 import { useAppSelector } from '../src/store/hooks';
 import { hydrateAuth } from '../src/store/slices/authSlice';
 import { hydrateExpenses } from '../src/store/slices/expenseSlice';
+import { hydrateSmsSettings } from '../src/store/slices/smsSlice';
 import { colors } from '../src/theme';
 
 function RootLayoutNav() {
@@ -50,6 +53,12 @@ function RootLayoutNav() {
         const pendingQueue = pendingQueueJson ? JSON.parse(pendingQueueJson) : [];
 
         dispatch(hydrateExpenses({ items: expenses, pendingQueue }));
+
+        // Hydrate SMS detection preference (Android only)
+        if (Platform.OS === 'android') {
+          const smsEnabled = await AsyncStorage.getItem('smsDetectionEnabled');
+          dispatch(hydrateSmsSettings({ isEnabled: smsEnabled === 'true' }));
+        }
       } catch (error) {
         console.error('Hydration error:', error);
         dispatch(hydrateAuth(null));
@@ -66,6 +75,14 @@ function RootLayoutNav() {
     syncEngine.init();
     return () => syncEngine.cleanup();
   }, []);
+
+  // Initialize SMS listener (Android only)
+  useEffect(() => {
+    if (Platform.OS === 'android' && isAuthenticated) {
+      initSmsListener();
+      return () => stopSmsListener();
+    }
+  }, [isAuthenticated]);
 
   // Handle navigation based on auth state
   useEffect(() => {
@@ -110,7 +127,29 @@ function RootLayoutNav() {
             headerShown: false,
           }}
         />
+        <Stack.Screen
+          name="budgets"
+          options={{
+            presentation: 'modal',
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="insights"
+          options={{
+            presentation: 'modal',
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="settings/sms-detection"
+          options={{
+            presentation: 'modal',
+            headerShown: false,
+          }}
+        />
       </Stack>
+      {Platform.OS === 'android' && <SmsTransactionModal />}
     </>
   );
 }

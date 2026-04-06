@@ -67,7 +67,7 @@ class SyncEngine {
                 expenses: pendingQueue,
             });
 
-            const { results } = response.data;
+            const { results } = response.data.data;
 
             // Mark each expense as synced
             for (const result of results) {
@@ -110,7 +110,7 @@ class SyncEngine {
                 params: { limit: 100 },
             });
 
-            const serverExpenses: Expense[] = response.data.expenses.map(
+            const serverExpenses: Expense[] = response.data.data.expenses.map(
                 (exp: any) => ({
                     _id: exp._id,
                     localId: exp.localId || exp._id,

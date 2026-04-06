@@ -46,7 +46,7 @@ export default function EditExpenseScreen() {
     const [type, setType] = useState<'expense' | 'income'>('expense');
     const [category, setCategory] = useState('food');
     const [description, setDescription] = useState('');
-    const [paymentMethod, setPaymentMethod] = useState('cash');
+    const [paymentMethod, setPaymentMethod] = useState('upi');
     const [date, setDate] = useState(new Date());
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -195,7 +195,7 @@ export default function EditExpenseScreen() {
                 <AmountInput
                     value={amount}
                     onChangeText={setAmount}
-                    currency="$"
+                    currency="₹"
                 />
 
                 {/* Category Selection */}

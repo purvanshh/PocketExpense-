@@ -1,11 +1,14 @@
 import { format, formatDistanceToNow, isToday, isYesterday } from 'date-fns';
 
 export const formatCurrency = (amount: number, currency = 'INR'): string => {
+    // Force INR if currency is USD (migration fix)
+    const targetCurrency = currency === 'USD' ? 'INR' : currency;
+
     return new Intl.NumberFormat('en-IN', {
         style: 'currency',
-        currency,
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
+        currency: targetCurrency,
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
     }).format(amount);
 };
 
