@@ -1,46 +1,25 @@
 // PocketExpense+ Theme - Violet Glassmorphism Design System
 
-export const colors = {
-    // Primary Brand Colors
-    gradientStart: '#C4A6FE',
-    gradientEnd: '#8A64EB',
-    primary: '#8A64EB',
-    primaryDark: '#181026',
-    primaryLight: '#9D85FF',
+export {
+    categories,
+    categoryTint,
+    darkColors,
+    lightColors,
+    paymentMethods,
+    type CategoryKey,
+    type ThemeColors,
+} from './colors';
+export { makeStyles } from './makeStyles';
+export { ThemeProvider, useTheme, type ThemeMode } from './ThemeContext';
 
-    // Secondary Accent
-    secondary: '#C7F2A4',
+import { lightColors } from './colors';
 
-    // Backgrounds
-    background: '#F8F9FE',
-    cardBg: '#FFFFFF',
-    inputBg: '#F2F4F8',
-
-    // Text Colors
-    textMain: '#1C1C1E',
-    textSecondary: '#8E8E93',
-    textLight: '#BDBDBD',
-    textWhite: '#FFFFFF',
-
-    // Status Colors
-    success: '#4CD964',
-    successBg: '#E0F8E3',
-    error: '#FF3B30',
-    errorBg: '#FFEBEE',
-    warning: '#FF9500',
-    warningBg: '#FFF3E0',
-    info: '#007AFF',
-    infoBg: '#E3F2FD',
-
-    // Chart Colors
-    chartPurple: '#8A64EB',
-    chartLime: '#C7F2A4',
-    chartBlue: '#5AC8FA',
-    chartOrange: '#FF9500',
-
-    // Overlay
-    overlay: 'rgba(0, 0, 0, 0.5)',
-};
+/**
+ * @deprecated Static light palette. Kept so non-visual modules can read a
+ * colour without a React context. Anything that renders should use
+ * `useTheme().colors` (or `makeStyles`) so it responds to the dark scheme.
+ */
+export const colors = lightColors;
 
 export const borderRadius = {
     xs: 8,
@@ -62,6 +41,8 @@ export const spacing = {
     xxxl: 32,
 };
 
+// Shadows read as depth on light backgrounds but disappear on dark ones, where
+// a lifted surface colour does the same job. `useElevation` picks between them.
 export const shadows = {
     card: {
         shadowColor: '#000',
@@ -93,6 +74,41 @@ export const shadows = {
     },
 };
 
+/** Dark-mode shadow set: softer, since contrast comes from surface colour. */
+export const darkShadows = {
+    card: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.4,
+        shadowRadius: 8,
+        elevation: 3,
+    },
+    cardHeavy: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.5,
+        shadowRadius: 12,
+        elevation: 6,
+    },
+    tabBar: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -6 },
+        shadowOpacity: 0.45,
+        shadowRadius: 14,
+        elevation: 8,
+    },
+    fab: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.5,
+        shadowRadius: 10,
+        elevation: 10,
+    },
+};
+
+/** Pick the shadow set matching the active scheme. */
+export const elevation = (isDark: boolean) => (isDark ? darkShadows : shadows);
+
 export const typography = {
     fontFamily: {
         regular: 'Poppins_400Regular',
@@ -110,47 +126,4 @@ export const typography = {
         xxxl: 32,
         hero: 40,
     },
-};
-
-// Category configuration with colors and icons
-export const categories = {
-    groceries: { label: 'Groceries', icon: '🛒', color: '#FFE4C4', textColor: '#8B4513' },
-    travel: { label: 'Travel', icon: '✈️', color: '#E8DAEF', textColor: '#6C3483' },
-    car: { label: 'Car', icon: '🚗', color: '#D6EAF8', textColor: '#2471A3' },
-    home: { label: 'Home', icon: '🏠', color: '#FCE4EC', textColor: '#C2185B' },
-    insurance: { label: 'Insurance', icon: '✅', color: '#E8F8F5', textColor: '#1ABC9C' },
-    education: { label: 'Education', icon: '🎓', color: '#FFF9C4', textColor: '#F9A825' },
-    marketing: { label: 'Marketing', icon: '📈', color: '#E8F5E9', textColor: '#388E3C' },
-    shopping: { label: 'Shopping', icon: '🛍️', color: '#FFE0B2', textColor: '#E65100' },
-    internet: { label: 'Internet', icon: '📶', color: '#E1F5FE', textColor: '#0277BD' },
-    water: { label: 'Water', icon: '💧', color: '#E3F2FD', textColor: '#1565C0' },
-    rent: { label: 'Rent', icon: '🔑', color: '#FFEBEE', textColor: '#C62828' },
-    gym: { label: 'Gym', icon: '🏋️', color: '#F3E5F5', textColor: '#7B1FA2' },
-    subscription: { label: 'Subscription', icon: '📱', color: '#EDE7F6', textColor: '#512DA8' },
-    vacation: { label: 'Vacation', icon: '🌴', color: '#E0F2F1', textColor: '#00695C' },
-    food: { label: 'Food', icon: '🍕', color: '#FFF3E0', textColor: '#EF6C00' },
-    entertainment: { label: 'Entertainment', icon: '🎬', color: '#E8EAF6', textColor: '#303F9F' },
-    salary: { label: 'Salary', icon: '💰', color: '#E8F5E9', textColor: '#2E7D32' },
-    freelance: { label: 'Freelance', icon: '💼', color: '#E0F7FA', textColor: '#00838F' },
-    investment: { label: 'Investment', icon: '📊', color: '#FFF8E1', textColor: '#FF8F00' },
-    other: { label: 'Other', icon: '⋯', color: '#F5F5F5', textColor: '#616161' },
-};
-
-export const paymentMethods = {
-    cash: { label: 'Cash', icon: '💵' },
-    credit_card: { label: 'Credit Card', icon: '💳' },
-    debit_card: { label: 'Debit Card', icon: '💳' },
-    bank_transfer: { label: 'Bank Transfer', icon: '🏦' },
-    upi: { label: 'UPI', icon: '📲' },
-    other: { label: 'Other', icon: '💱' },
-};
-
-export default {
-    colors,
-    borderRadius,
-    spacing,
-    shadows,
-    typography,
-    categories,
-    paymentMethods,
 };
