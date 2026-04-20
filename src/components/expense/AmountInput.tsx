@@ -1,6 +1,6 @@
 import React from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
-import { colors, spacing, typography } from '../../theme';
+import { Text, TextInput, View } from 'react-native';
+import { makeStyles, spacing, typography, useTheme } from '../../theme';
 
 interface AmountInputProps {
     value: string;
@@ -15,6 +15,9 @@ export const AmountInput: React.FC<AmountInputProps> = ({
     currency = '₹',
     placeholder = '0.00',
 }) => {
+    const styles = useStyles();
+    const { colors } = useTheme();
+
     const handleChange = (text: string) => {
         // Only allow numbers and one decimal point
         const cleaned = text.replace(/[^0-9.]/g, '');
@@ -35,12 +38,13 @@ export const AmountInput: React.FC<AmountInputProps> = ({
                 placeholderTextColor={colors.textLight}
                 keyboardType="decimal-pad"
                 maxLength={12}
+                accessibilityLabel="Amount"
             />
         </View>
     );
 };
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
     container: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -50,16 +54,16 @@ const styles = StyleSheet.create({
     currency: {
         fontFamily: typography.fontFamily.bold,
         fontSize: 48,
-        color: colors.textMain,
+        color: c.textMain,
         marginRight: spacing.xs,
     },
     input: {
         fontFamily: typography.fontFamily.bold,
         fontSize: 48,
-        color: colors.textMain,
+        color: c.textMain,
         minWidth: 100,
         textAlign: 'left',
     },
-});
+}));
 
 export default AmountInput;

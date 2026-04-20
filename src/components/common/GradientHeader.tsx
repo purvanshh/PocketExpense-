@@ -2,7 +2,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import { StyleSheet, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors } from '../../theme';
+import { borderRadius, spacing, useTheme } from '../../theme';
 
 interface GradientHeaderProps {
     children: React.ReactNode;
@@ -16,6 +16,7 @@ export const GradientHeader: React.FC<GradientHeaderProps> = ({
     height = 280,
 }) => {
     const insets = useSafeAreaInsets();
+    const { colors } = useTheme();
 
     return (
         <LinearGradient
@@ -36,10 +37,10 @@ export const GradientHeader: React.FC<GradientHeaderProps> = ({
 const styles = StyleSheet.create({
     gradient: {
         width: '100%',
-        paddingHorizontal: 20,
-        paddingBottom: 40,
-        borderBottomLeftRadius: 30,
-        borderBottomRightRadius: 30,
+        paddingHorizontal: spacing.xl,
+        paddingBottom: spacing.xxxl,
+        borderBottomLeftRadius: borderRadius.xxl,
+        borderBottomRightRadius: borderRadius.xxl,
     },
 });
 

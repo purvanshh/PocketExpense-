@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, View, ViewStyle } from 'react-native';
-import { borderRadius, colors, shadows } from '../../theme';
+import { borderRadius, elevation, makeStyles, spacing } from '../../theme';
 
 interface CardProps {
     children: React.ReactNode;
@@ -13,6 +13,8 @@ export const Card: React.FC<CardProps> = ({
     style,
     variant = 'default',
 }) => {
+    const styles = useStyles();
+
     return (
         <View
             style={[
@@ -27,21 +29,27 @@ export const Card: React.FC<CardProps> = ({
     );
 };
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c, isDark) => ({
     card: {
-        backgroundColor: colors.cardBg,
+        backgroundColor: c.cardBg,
         borderRadius: borderRadius.xl,
-        padding: 20,
-        ...shadows.card,
+        padding: spacing.xl,
+        ...elevation(isDark).card,
+        // On dark backgrounds a shadow reads as nothing; a hairline edge is what
+        // actually separates the card from the page.
+        ...(isDark
+            ? { borderWidth: StyleSheet.hairlineWidth, borderColor: c.border }
+            : null),
     },
     elevated: {
-        ...shadows.cardHeavy,
+        backgroundColor: c.surfaceElevated,
+        ...elevation(isDark).cardHeavy,
     },
     flat: {
         shadowColor: 'transparent',
         shadowOpacity: 0,
         elevation: 0,
     },
-});
+}));
 
 export default Card;

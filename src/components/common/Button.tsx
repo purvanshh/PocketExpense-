@@ -6,7 +6,7 @@ import {
     TouchableOpacity,
     ViewStyle
 } from 'react-native';
-import { borderRadius, colors, typography } from '../../theme';
+import { borderRadius, typography, useTheme } from '../../theme';
 
 interface ButtonProps {
     title: string;
@@ -31,6 +31,8 @@ export const Button: React.FC<ButtonProps> = ({
     textStyle,
     icon,
 }) => {
+    const { colors } = useTheme();
+
     const getButtonStyle = (): ViewStyle => {
         const baseStyle: ViewStyle = {
             borderRadius: borderRadius.xxl,
@@ -95,6 +97,9 @@ export const Button: React.FC<ButtonProps> = ({
             disabled={disabled || loading}
             style={[getButtonStyle(), style]}
             activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={title}
+            accessibilityState={{ disabled: disabled || loading, busy: loading }}
         >
             {loading ? (
                 <ActivityIndicator
