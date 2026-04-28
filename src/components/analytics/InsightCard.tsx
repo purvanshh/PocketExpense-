@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { borderRadius, colors, spacing, typography } from '../../theme';
+import { Text, View } from 'react-native';
+import { borderRadius, makeStyles, spacing, typography } from '../../theme';
 import { formatCurrency } from '../../utils/formatters';
 
 interface InsightCardProps {
@@ -16,11 +16,13 @@ interface InsightCardProps {
 export const InsightCard: React.FC<InsightCardProps> = ({
     title,
     amount,
-    currency = 'USD',
+    currency = 'INR',
     icon,
     iconColor,
     iconBgColor,
 }) => {
+    const styles = useStyles();
+
     return (
         <View style={styles.container}>
             <View style={[styles.iconContainer, { backgroundColor: iconBgColor }]}>
@@ -32,10 +34,10 @@ export const InsightCard: React.FC<InsightCardProps> = ({
     );
 };
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
     container: {
         flex: 1,
-        backgroundColor: colors.cardBg,
+        backgroundColor: c.cardBg,
         borderRadius: borderRadius.lg,
         padding: spacing.lg,
         alignItems: 'flex-start',
@@ -51,14 +53,14 @@ const styles = StyleSheet.create({
     amount: {
         fontFamily: typography.fontFamily.bold,
         fontSize: typography.sizes.xl,
-        color: colors.textMain,
+        color: c.textMain,
         marginBottom: spacing.xs,
     },
     title: {
         fontFamily: typography.fontFamily.regular,
         fontSize: typography.sizes.sm,
-        color: colors.textSecondary,
+        color: c.textSecondary,
     },
-});
+}));
 
 export default InsightCard;

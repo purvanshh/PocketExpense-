@@ -1,6 +1,6 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { borderRadius, categories, colors, spacing, typography } from '../../theme';
+import { Text, TouchableOpacity, View } from 'react-native';
+import { borderRadius, categoryTint, makeStyles, spacing, typography, useTheme } from '../../theme';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 
 interface TransactionItemProps {
@@ -21,17 +21,24 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
     category,
     description,
     date,
-    currency = 'USD',
+    currency = 'INR',
     onPress,
 }) => {
-    const categoryConfig = categories[category as keyof typeof categories] || categories.other;
+    const styles = useStyles();
+    const { colors, isDark } = useTheme();
+
+    const categoryConfig = categoryTint(category, isDark);
     const isExpense = type === 'expense';
+    const label = description || categoryConfig.label;
+    const signedAmount = `${isExpense ? '-' : '+'}${formatCurrency(amount, currency)}`;
 
     return (
         <TouchableOpacity
             style={styles.container}
             onPress={onPress}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={`${label}, ${signedAmount}, ${formatDate(date)}`}
         >
             <View style={styles.leftContent}>
                 <View
@@ -44,7 +51,7 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
                 </View>
                 <View style={styles.textContent}>
                     <Text style={styles.description} numberOfLines={1}>
-                        {description || categoryConfig.label}
+                        {label}
                     </Text>
                     <Text style={styles.date}>{formatDate(date)}</Text>
                 </View>
@@ -55,8 +62,9 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
                         styles.amount,
                         { color: isExpense ? colors.error : colors.success },
                     ]}
+                    numberOfLines={1}
                 >
-                    {isExpense ? '-' : '+'}{formatCurrency(amount, currency)}
+                    {signedAmount}
                 </Text>
                 <View style={styles.chevron}>
                     <Text style={styles.chevronText}>›</Text>
@@ -66,14 +74,14 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
     );
 };
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
     container: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingVertical: spacing.md,
         paddingHorizontal: spacing.lg,
-        backgroundColor: colors.cardBg,
+        backgroundColor: c.cardBg,
         borderRadius: borderRadius.lg,
         marginBottom: spacing.sm,
     },
@@ -81,6 +89,8 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         flex: 1,
+        // Without this the description can push the amount off the row.
+        minWidth: 0,
     },
     iconContainer: {
         width: 48,
@@ -95,21 +105,25 @@ const styles = StyleSheet.create({
     },
     textContent: {
         flex: 1,
+        minWidth: 0,
     },
     description: {
         fontFamily: typography.fontFamily.medium,
         fontSize: typography.sizes.md,
-        color: colors.textMain,
+        color: c.textMain,
         marginBottom: 2,
     },
     date: {
         fontFamily: typography.fontFamily.regular,
         fontSize: typography.sizes.sm,
-        color: colors.textSecondary,
+        color: c.textSecondary,
     },
     rightContent: {
         flexDirection: 'row',
         alignItems: 'center',
+        // Keep the amount fully legible; the description truncates instead.
+        flexShrink: 0,
+        marginLeft: spacing.sm,
     },
     amount: {
         fontFamily: typography.fontFamily.semiBold,
@@ -122,8 +136,8 @@ const styles = StyleSheet.create({
     },
     chevronText: {
         fontSize: 20,
-        color: colors.textSecondary,
+        color: c.textSecondary,
     },
-});
+}));
 
 export default TransactionItem;

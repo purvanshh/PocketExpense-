@@ -1,11 +1,6 @@
 import React from 'react';
-import {
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
-} from 'react-native';
-import { borderRadius, categories, colors, spacing, typography } from '../../theme';
+import { Text, TouchableOpacity, View } from 'react-native';
+import { borderRadius, categoryTint, makeStyles, spacing, typography, useTheme } from '../../theme';
 
 interface CategoryGridProps {
     selectedCategory: string;
@@ -13,27 +8,29 @@ interface CategoryGridProps {
     type?: 'expense' | 'income';
 }
 
+const EXPENSE_CATEGORIES = [
+    'groceries', 'travel', 'car', 'home', 'insurance', 'education',
+    'marketing', 'shopping', 'internet', 'water', 'rent', 'gym',
+    'subscription', 'vacation', 'food', 'entertainment', 'other',
+];
+
+const INCOME_CATEGORIES = ['salary', 'freelance', 'investment', 'other'];
+
 export const CategoryGrid: React.FC<CategoryGridProps> = ({
     selectedCategory,
     onSelectCategory,
     type = 'expense',
 }) => {
-    // Filter categories based on type
-    const expenseCategories = [
-        'groceries', 'travel', 'car', 'home', 'insurance', 'education',
-        'marketing', 'shopping', 'internet', 'water', 'rent', 'gym',
-        'subscription', 'vacation', 'food', 'entertainment', 'other',
-    ];
+    const styles = useStyles();
+    const { isDark } = useTheme();
 
-    const incomeCategories = ['salary', 'freelance', 'investment', 'other'];
-
-    const categoryList = type === 'expense' ? expenseCategories : incomeCategories;
+    const categoryList = type === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
 
     return (
         <View style={styles.container}>
             <View style={styles.grid}>
                 {categoryList.map((key) => {
-                    const category = categories[key as keyof typeof categories];
+                    const category = categoryTint(key, isDark);
                     const isSelected = selectedCategory === key;
 
                     return (
@@ -45,6 +42,9 @@ export const CategoryGrid: React.FC<CategoryGridProps> = ({
                             ]}
                             onPress={() => onSelectCategory(key)}
                             activeOpacity={0.7}
+                            accessibilityRole="button"
+                            accessibilityLabel={category.label}
+                            accessibilityState={{ selected: isSelected }}
                         >
                             <View
                                 style={[
@@ -72,7 +72,7 @@ export const CategoryGrid: React.FC<CategoryGridProps> = ({
     );
 };
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) => ({
     container: {
         width: '100%',
     },
@@ -85,8 +85,11 @@ const styles = StyleSheet.create({
         width: '25%',
         alignItems: 'center',
         paddingVertical: spacing.md,
+        borderRadius: borderRadius.md,
     },
-    selectedItem: {},
+    selectedItem: {
+        backgroundColor: c.inputBg,
+    },
     iconContainer: {
         width: 56,
         height: 56,
@@ -97,7 +100,7 @@ const styles = StyleSheet.create({
     },
     selectedIconContainer: {
         borderWidth: 3,
-        borderColor: colors.primary,
+        borderColor: c.primary,
     },
     icon: {
         fontSize: 26,
@@ -105,13 +108,13 @@ const styles = StyleSheet.create({
     label: {
         fontFamily: typography.fontFamily.medium,
         fontSize: typography.sizes.xs,
-        color: colors.textSecondary,
+        color: c.textSecondary,
         textAlign: 'center',
     },
     selectedLabel: {
-        color: colors.primary,
+        color: c.primary,
         fontFamily: typography.fontFamily.semiBold,
     },
-});
+}));
 
 export default CategoryGrid;

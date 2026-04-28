@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { borderRadius, colors, shadows, spacing, typography } from '../../theme';
+import { Text, TouchableOpacity, View } from 'react-native';
+import { borderRadius, elevation, makeStyles, spacing, typography, useTheme } from '../../theme';
 import { formatCurrency } from '../../utils/formatters';
 
 interface SpendingWalletProps {
@@ -12,14 +12,19 @@ interface SpendingWalletProps {
 
 export const SpendingWallet: React.FC<SpendingWalletProps> = ({
     balance,
-    currency = 'USD',
+    currency = 'INR',
     onPress,
 }) => {
+    const styles = useStyles();
+    const { colors } = useTheme();
+
     return (
         <TouchableOpacity
             style={styles.container}
             onPress={onPress}
             activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={`Spending wallet, balance ${formatCurrency(balance, currency)}`}
         >
             <View style={styles.leftContent}>
                 <View style={styles.iconContainer}>
@@ -35,15 +40,15 @@ export const SpendingWallet: React.FC<SpendingWalletProps> = ({
     );
 };
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c, isDark) => ({
     container: {
-        backgroundColor: colors.cardBg,
+        backgroundColor: c.cardBg,
         borderRadius: borderRadius.xl,
         padding: spacing.lg,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        ...shadows.card,
+        ...elevation(isDark).card,
     },
     leftContent: {
         flexDirection: 'row',
@@ -53,7 +58,7 @@ const styles = StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: borderRadius.md,
-        backgroundColor: colors.inputBg,
+        backgroundColor: c.inputBg,
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: spacing.md,
@@ -61,7 +66,7 @@ const styles = StyleSheet.create({
     label: {
         fontFamily: typography.fontFamily.medium,
         fontSize: typography.sizes.md,
-        color: colors.textMain,
+        color: c.textMain,
     },
     rightContent: {
         flexDirection: 'row',
@@ -70,9 +75,9 @@ const styles = StyleSheet.create({
     balance: {
         fontFamily: typography.fontFamily.semiBold,
         fontSize: typography.sizes.lg,
-        color: colors.textMain,
+        color: c.textMain,
         marginRight: spacing.xs,
     },
-});
+}));
 
 export default SpendingWallet;
