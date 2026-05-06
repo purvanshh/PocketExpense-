@@ -6,7 +6,6 @@ import {
     Modal,
     Platform,
     ScrollView,
-    StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
@@ -18,7 +17,7 @@ import { useDispatch } from 'react-redux';
 import { useAppSelector } from '../../store/hooks';
 import { addExpense } from '../../store/slices/expenseSlice';
 import { clearDetectedTransaction, DetectedTransaction } from '../../store/slices/smsSlice';
-import { borderRadius, categories, colors, shadows, spacing, typography } from '../../theme';
+import { borderRadius, categories, categoryTint, elevation, makeStyles, spacing, typography, useTheme } from '../../theme';
 import { formatCurrency } from '../../utils/formatters';
 
 const CATEGORY_LIST = Object.entries(categories).map(([key, val]) => ({
@@ -27,6 +26,8 @@ const CATEGORY_LIST = Object.entries(categories).map(([key, val]) => ({
 }));
 
 export default function SmsTransactionModal() {
+    const styles = useStyles();
+    const { colors, isDark } = useTheme();
     const dispatch = useDispatch();
     const { lastDetectedTransaction, showConfirmation } = useAppSelector((s) => s.sms);
     const scaleAnim = React.useRef(new Animated.Value(0.85)).current;
@@ -97,7 +98,7 @@ export default function SmsTransactionModal() {
         return null;
     }
 
-    const catConfig = categories[editCategory as keyof typeof categories] || categories.other;
+    const catConfig = categoryTint(editCategory, isDark);
 
     return (
         <Modal visible transparent animationType="none" statusBarTranslucent>
@@ -276,31 +277,31 @@ export default function SmsTransactionModal() {
     );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c, isDark) => ({
     overlay: {
         flex: 1,
-        backgroundColor: colors.overlay,
+        backgroundColor: c.overlay,
         justifyContent: 'center',
         paddingHorizontal: spacing.xl,
     },
     sheet: {
-        backgroundColor: colors.cardBg,
+        backgroundColor: c.cardBg,
         borderRadius: borderRadius.xl,
         maxHeight: '80%',
-        ...shadows.cardHeavy,
+        ...elevation(isDark).cardHeavy,
     },
     header: {
         alignItems: 'center',
         paddingTop: spacing.xxl,
         paddingBottom: spacing.lg,
         borderBottomWidth: 1,
-        borderBottomColor: colors.inputBg,
+        borderBottomColor: c.inputBg,
     },
     iconCircle: {
         width: 52,
         height: 52,
         borderRadius: 26,
-        backgroundColor: colors.inputBg,
+        backgroundColor: c.inputBg,
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: spacing.md,
@@ -308,12 +309,12 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontFamily: typography.fontFamily.semiBold,
         fontSize: typography.sizes.lg,
-        color: colors.textMain,
+        color: c.textMain,
     },
     headerSub: {
         fontFamily: typography.fontFamily.regular,
         fontSize: typography.sizes.sm,
-        color: colors.textSecondary,
+        color: c.textSecondary,
         marginTop: 2,
     },
     body: {
@@ -321,7 +322,7 @@ const styles = StyleSheet.create({
         paddingVertical: spacing.lg,
     },
     previewCard: {
-        backgroundColor: colors.inputBg,
+        backgroundColor: c.inputBg,
         borderRadius: borderRadius.md,
         padding: spacing.lg,
     },
@@ -331,12 +332,12 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingVertical: spacing.md,
         borderBottomWidth: 1,
-        borderBottomColor: colors.cardBg,
+        borderBottomColor: c.cardBg,
     },
     previewLabel: {
         fontFamily: typography.fontFamily.regular,
         fontSize: typography.sizes.sm,
-        color: colors.textSecondary,
+        color: c.textSecondary,
     },
     previewAmount: {
         fontFamily: typography.fontFamily.bold,
@@ -345,7 +346,7 @@ const styles = StyleSheet.create({
     previewValue: {
         fontFamily: typography.fontFamily.medium,
         fontSize: typography.sizes.md,
-        color: colors.textMain,
+        color: c.textMain,
     },
     categoryBadge: {
         flexDirection: 'row',
@@ -368,16 +369,16 @@ const styles = StyleSheet.create({
     fieldLabel: {
         fontFamily: typography.fontFamily.medium,
         fontSize: typography.sizes.sm,
-        color: colors.textSecondary,
+        color: c.textSecondary,
         marginTop: spacing.sm,
     },
     input: {
-        backgroundColor: colors.inputBg,
+        backgroundColor: c.inputBg,
         borderRadius: borderRadius.sm,
         padding: spacing.md,
         fontFamily: typography.fontFamily.regular,
         fontSize: typography.sizes.md,
-        color: colors.textMain,
+        color: c.textMain,
     },
     typeRow: {
         flexDirection: 'row',
@@ -387,7 +388,7 @@ const styles = StyleSheet.create({
         flex: 1,
         paddingVertical: spacing.sm,
         borderRadius: borderRadius.sm,
-        backgroundColor: colors.inputBg,
+        backgroundColor: c.inputBg,
         alignItems: 'center',
     },
     typeChipActive: {
@@ -397,7 +398,7 @@ const styles = StyleSheet.create({
     typeChipText: {
         fontFamily: typography.fontFamily.medium,
         fontSize: typography.sizes.sm,
-        color: colors.textSecondary,
+        color: c.textSecondary,
     },
     categoryScroll: {
         marginTop: spacing.xs,
@@ -407,7 +408,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: spacing.md,
         paddingVertical: spacing.sm,
-        backgroundColor: colors.inputBg,
+        backgroundColor: c.inputBg,
         borderRadius: borderRadius.full,
         marginRight: spacing.sm,
         borderWidth: 1.5,
@@ -420,12 +421,12 @@ const styles = StyleSheet.create({
     categoryChipLabel: {
         fontFamily: typography.fontFamily.medium,
         fontSize: typography.sizes.xs,
-        color: colors.textSecondary,
+        color: c.textSecondary,
     },
     actions: {
         flexDirection: 'row',
         borderTopWidth: 1,
-        borderTopColor: colors.inputBg,
+        borderTopColor: c.inputBg,
         padding: spacing.lg,
         gap: spacing.sm,
     },
@@ -438,7 +439,7 @@ const styles = StyleSheet.create({
     dismissText: {
         fontFamily: typography.fontFamily.medium,
         fontSize: typography.sizes.md,
-        color: colors.textSecondary,
+        color: c.textSecondary,
     },
     editBtn: {
         flex: 1,
@@ -447,20 +448,20 @@ const styles = StyleSheet.create({
         borderRadius: borderRadius.xxl,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: colors.inputBg,
+        backgroundColor: c.inputBg,
         gap: 4,
     },
     editText: {
         fontFamily: typography.fontFamily.medium,
         fontSize: typography.sizes.md,
-        color: colors.primary,
+        color: c.primary,
     },
     confirmBtn: {
         flex: 1.2,
         flexDirection: 'row',
         paddingVertical: spacing.md,
         borderRadius: borderRadius.xxl,
-        backgroundColor: colors.primaryDark,
+        backgroundColor: c.primaryDark,
         alignItems: 'center',
         justifyContent: 'center',
         gap: 4,
@@ -468,6 +469,6 @@ const styles = StyleSheet.create({
     confirmText: {
         fontFamily: typography.fontFamily.semiBold,
         fontSize: typography.sizes.md,
-        color: colors.textWhite,
+        color: c.textWhite,
     },
-});
+}));

@@ -12,9 +12,9 @@ import {
     subMonths,
 } from 'date-fns';
 import React, { useState } from 'react';
-import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, Text, TouchableOpacity, View } from 'react-native';
 
-import { borderRadius, colors, shadows, spacing, typography } from '../../theme';
+import { borderRadius, elevation, makeStyles, spacing, typography, useTheme } from '../../theme';
 
 interface CustomDatePickerProps {
     visible: boolean;
@@ -29,6 +29,8 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
     onSelect,
     selectedDate,
 }) => {
+    const styles = useStyles();
+    const { colors } = useTheme();
     const [currentMonth, setCurrentMonth] = useState(new Date(selectedDate));
 
     const handlePrevMonth = () => {
@@ -166,7 +168,7 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
     );
 };
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c, isDark) => ({
     overlay: {
         flex: 1,
         backgroundColor: 'rgba(0, 0, 0, 0.5)', // Dimmed background
@@ -176,10 +178,10 @@ const styles = StyleSheet.create({
     },
     modalContainer: {
         width: '100%',
-        backgroundColor: colors.cardBg,
+        backgroundColor: c.cardBg,
         borderRadius: borderRadius.xl,
         padding: spacing.lg,
-        ...shadows.cardHeavy,
+        ...elevation(isDark).cardHeavy,
     },
     header: {
         flexDirection: 'row',
@@ -190,11 +192,11 @@ const styles = StyleSheet.create({
     monthTitle: {
         fontFamily: typography.fontFamily.semiBold,
         fontSize: typography.sizes.lg,
-        color: colors.textMain,
+        color: c.textMain,
     },
     arrowButton: {
         padding: spacing.xs,
-        backgroundColor: colors.inputBg,
+        backgroundColor: c.inputBg,
         borderRadius: borderRadius.full,
     },
     calendarContainer: {
@@ -210,7 +212,7 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         fontFamily: typography.fontFamily.medium,
         fontSize: typography.sizes.xs,
-        color: colors.textSecondary,
+        color: c.textSecondary,
         textTransform: 'uppercase',
     },
     dayCell: {
@@ -221,8 +223,8 @@ const styles = StyleSheet.create({
         borderRadius: borderRadius.full,
     },
     selectedDayCell: {
-        backgroundColor: colors.primary,
-        ...shadows.card,
+        backgroundColor: c.primary,
+        ...elevation(isDark).card,
     },
     disabledDayCell: {
         opacity: 0.3,
@@ -230,20 +232,20 @@ const styles = StyleSheet.create({
     dayText: {
         fontFamily: typography.fontFamily.regular,
         fontSize: typography.sizes.md,
-        color: colors.textMain,
+        color: c.textMain,
     },
     selectedDayText: {
         fontFamily: typography.fontFamily.semiBold,
-        color: colors.textWhite,
+        color: c.textWhite,
     },
     disabledDayText: {
-        color: colors.textLight,
+        color: c.textLight,
     },
     selectedDot: {
         width: 4,
         height: 4,
         borderRadius: 2,
-        backgroundColor: colors.textWhite,
+        backgroundColor: c.textWhite,
         position: 'absolute',
         bottom: 4,
     },
@@ -251,7 +253,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         borderTopWidth: 1,
-        borderTopColor: colors.inputBg,
+        borderTopColor: c.inputBg,
         paddingTop: spacing.md,
     },
     closeButton: {
@@ -260,18 +262,18 @@ const styles = StyleSheet.create({
     },
     closeButtonText: {
         fontFamily: typography.fontFamily.medium,
-        color: colors.textSecondary,
+        color: c.textSecondary,
         fontSize: typography.sizes.md,
     },
     todayButton: {
-        backgroundColor: colors.inputBg,
+        backgroundColor: c.inputBg,
         paddingVertical: spacing.sm,
         paddingHorizontal: spacing.lg,
         borderRadius: borderRadius.md,
     },
     todayButtonText: {
         fontFamily: typography.fontFamily.semiBold,
-        color: colors.primary,
+        color: c.primary,
         fontSize: typography.sizes.md,
     },
-});
+}));

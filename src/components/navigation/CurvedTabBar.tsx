@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import React from 'react';
-import { Dimensions, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Dimensions, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
-import { colors, shadows, spacing } from '../../theme';
+import { elevation, makeStyles, spacing, useTheme } from '../../theme';
 
 const { width } = Dimensions.get('window');
 const TAB_BAR_HEIGHT = 70;
@@ -15,22 +15,29 @@ interface TabBarIconProps {
     focused: boolean;
 }
 
-const TabBarIcon: React.FC<TabBarIconProps> = ({ name, focused }) => (
-    <View style={styles.iconContainer}>
-        <Ionicons
-            name={name}
-            size={24}
-            color={focused ? colors.primary : colors.textSecondary}
-        />
-        {focused && <View style={styles.activeIndicator} />}
-    </View>
-);
+const TabBarIcon: React.FC<TabBarIconProps> = ({ name, focused }) => {
+    const styles = useStyles();
+    const { colors } = useTheme();
+
+    return (
+        <View style={styles.iconContainer}>
+            <Ionicons
+                name={name}
+                size={24}
+                color={focused ? colors.primary : colors.textSecondary}
+            />
+            {focused && <View style={styles.activeIndicator} />}
+        </View>
+    );
+};
 
 export const CurvedTabBar: React.FC<BottomTabBarProps> = ({
     state,
     descriptors,
     navigation,
 }) => {
+    const styles = useStyles();
+    const { colors } = useTheme();
     const insets = useSafeAreaInsets();
 
     const icons: Record<string, keyof typeof Ionicons.glyphMap> = {
@@ -131,14 +138,14 @@ export const CurvedTabBar: React.FC<BottomTabBarProps> = ({
     );
 };
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c, isDark) => ({
     container: {
         position: 'absolute',
         bottom: 0,
         left: 0,
         right: 0,
         height: TAB_BAR_HEIGHT + 60,
-        ...shadows.tabBar,
+        ...elevation(isDark).tabBar,
     },
     svgBackground: {
         position: 'absolute',
@@ -167,10 +174,10 @@ const styles = StyleSheet.create({
         width: 60,
         height: 60,
         borderRadius: 30,
-        backgroundColor: colors.primaryDark,
+        backgroundColor: c.primaryDark,
         alignItems: 'center',
         justifyContent: 'center',
-        ...shadows.fab,
+        ...elevation(isDark).fab,
     },
     iconContainer: {
         alignItems: 'center',
@@ -180,9 +187,9 @@ const styles = StyleSheet.create({
         width: 6,
         height: 6,
         borderRadius: 3,
-        backgroundColor: colors.primary,
+        backgroundColor: c.primary,
         marginTop: 4,
     },
-});
+}));
 
 export default CurvedTabBar;

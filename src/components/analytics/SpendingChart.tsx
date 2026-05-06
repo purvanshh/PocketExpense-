@@ -1,6 +1,6 @@
 import React from 'react';
-import { Dimensions, StyleSheet, Text, View } from 'react-native';
-import { borderRadius, colors, spacing, typography } from '../../theme';
+import { Dimensions, Text, View } from 'react-native';
+import { borderRadius, makeStyles, spacing, typography, useTheme } from '../../theme';
 import { formatCurrency, getMonthName } from '../../utils/formatters';
 
 interface ChartData {
@@ -24,6 +24,8 @@ export const SpendingChart: React.FC<SpendingChartProps> = ({
     data,
     currency = 'USD',
 }) => {
+    const styles = useStyles();
+    const { colors } = useTheme();
     const maxValue = Math.max(
         ...data.map((d) => Math.max(d.income, d.expense)),
         1
@@ -97,7 +99,7 @@ export const SpendingChart: React.FC<SpendingChartProps> = ({
     );
 };
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c, isDark) => ({
     container: {
         paddingVertical: spacing.md,
     },
@@ -120,7 +122,7 @@ const styles = StyleSheet.create({
     legendText: {
         fontFamily: typography.fontFamily.regular,
         fontSize: typography.sizes.sm,
-        color: colors.textSecondary,
+        color: c.textSecondary,
     },
     chartArea: {
         flexDirection: 'row',
@@ -134,7 +136,7 @@ const styles = StyleSheet.create({
     yLabel: {
         fontFamily: typography.fontFamily.regular,
         fontSize: typography.sizes.xs,
-        color: colors.textSecondary,
+        color: c.textSecondary,
         textAlign: 'right',
     },
     barsContainer: {
@@ -159,17 +161,17 @@ const styles = StyleSheet.create({
         minHeight: 4,
     },
     incomeBar: {
-        backgroundColor: colors.chartPurple,
+        backgroundColor: c.chartPurple,
     },
     expenseBar: {
-        backgroundColor: colors.chartLime,
+        backgroundColor: c.chartLime,
     },
     xLabel: {
         fontFamily: typography.fontFamily.regular,
         fontSize: typography.sizes.xs,
-        color: colors.textSecondary,
+        color: c.textSecondary,
         marginTop: spacing.sm,
     },
-});
+}));
 
 export default SpendingChart;

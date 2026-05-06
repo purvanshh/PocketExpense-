@@ -3,13 +3,12 @@ import React, { useState } from 'react';
 import {
     Modal,
     ScrollView,
-    StyleSheet,
     Text,
     TouchableOpacity,
     View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { borderRadius, categories, colors, spacing, typography } from '../../theme';
+import { borderRadius, categories, makeStyles, spacing, typography, useTheme } from '../../theme';
 import { Button } from '../common/Button';
 
 export interface FilterState {
@@ -40,6 +39,8 @@ export const FilterModal: React.FC<FilterModalProps> = ({
     onApply,
     initialFilters,
 }) => {
+    const styles = useStyles();
+    const { colors } = useTheme();
     const insets = useSafeAreaInsets();
     const [filters, setFilters] = useState<FilterState>(initialFilters);
 
@@ -163,21 +164,21 @@ export const FilterModal: React.FC<FilterModalProps> = ({
     );
 };
 
-const styles = StyleSheet.create({
-    overlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'flex-end' },
+const useStyles = makeStyles((c, isDark) => ({
+    overlay: { flex: 1, backgroundColor: c.overlay, justifyContent: 'flex-end' },
     content: {
-        backgroundColor: colors.cardBg,
+        backgroundColor: c.cardBg,
         borderTopLeftRadius: borderRadius.xl,
         borderTopRightRadius: borderRadius.xl,
         padding: spacing.xl,
         maxHeight: '80%',
     },
     header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg },
-    title: { fontFamily: typography.fontFamily.bold, fontSize: typography.sizes.xl, color: colors.textMain },
+    title: { fontFamily: typography.fontFamily.bold, fontSize: typography.sizes.xl, color: c.textMain },
     sectionTitle: {
         fontFamily: typography.fontFamily.semiBold,
         fontSize: typography.sizes.md,
-        color: colors.textMain,
+        color: c.textMain,
         marginTop: spacing.xl,
         marginBottom: spacing.md,
     },
@@ -185,26 +186,26 @@ const styles = StyleSheet.create({
     chip: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.inputBg,
+        backgroundColor: c.inputBg,
         borderRadius: borderRadius.full,
         paddingVertical: spacing.sm,
         paddingHorizontal: spacing.md,
         gap: spacing.xs,
     },
-    chipActive: { backgroundColor: colors.primary },
-    chipText: { fontFamily: typography.fontFamily.medium, fontSize: typography.sizes.sm, color: colors.textSecondary },
-    chipTextActive: { color: colors.textWhite },
+    chipActive: { backgroundColor: c.primary },
+    chipText: { fontFamily: typography.fontFamily.medium, fontSize: typography.sizes.sm, color: c.textSecondary },
+    chipTextActive: { color: c.textWhite },
     chipEmoji: { fontSize: 14 },
     datePresetsRow: { flexDirection: 'row', gap: spacing.sm },
     datePreset: {
         flex: 1,
         paddingVertical: spacing.md,
         alignItems: 'center',
-        backgroundColor: colors.inputBg,
+        backgroundColor: c.inputBg,
         borderRadius: borderRadius.md,
     },
-    datePresetText: { fontFamily: typography.fontFamily.medium, fontSize: typography.sizes.xs, color: colors.textMain },
+    datePresetText: { fontFamily: typography.fontFamily.medium, fontSize: typography.sizes.xs, color: c.textMain },
     actionRow: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.xl, alignItems: 'center' },
     resetBtn: { paddingVertical: spacing.md, paddingHorizontal: spacing.lg },
-    resetText: { fontFamily: typography.fontFamily.medium, fontSize: typography.sizes.md, color: colors.textSecondary },
-});
+    resetText: { fontFamily: typography.fontFamily.medium, fontSize: typography.sizes.md, color: c.textSecondary },
+}));
