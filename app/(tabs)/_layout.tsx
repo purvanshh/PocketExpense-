@@ -3,10 +3,11 @@ import { Tabs } from 'expo-router';
 import React from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors, shadows } from '../../src/theme';
+import { borderRadius, elevation, useTheme } from '../../src/theme';
 
 export default function TabLayout() {
     const insets = useSafeAreaInsets();
+    const { colors, isDark } = useTheme();
 
     return (
         <Tabs
@@ -20,11 +21,11 @@ export default function TabLayout() {
                     height: 80 + insets.bottom,
                     backgroundColor: colors.cardBg,
                     borderTopWidth: 0,
-                    borderTopLeftRadius: 30,
-                    borderTopRightRadius: 30,
+                    borderTopLeftRadius: borderRadius.xxl,
+                    borderTopRightRadius: borderRadius.xxl,
                     paddingBottom: insets.bottom,
                     paddingTop: 10,
-                    ...shadows.tabBar,
+                    ...elevation(isDark).tabBar,
                 },
                 tabBarActiveTintColor: colors.primary,
                 tabBarInactiveTintColor: colors.textSecondary,
@@ -40,7 +41,7 @@ export default function TabLayout() {
                 name="index"
                 options={{
                     title: 'Home',
-                    tabBarIcon: ({ color, size }) => (
+                    tabBarIcon: ({ color }) => (
                         <Ionicons name="home" size={24} color={color} />
                     ),
                 }}
@@ -49,7 +50,7 @@ export default function TabLayout() {
                 name="transactions"
                 options={{
                     title: 'Transactions',
-                    tabBarIcon: ({ color, size }) => (
+                    tabBarIcon: ({ color }) => (
                         <Ionicons name="receipt" size={24} color={color} />
                     ),
                 }}
@@ -58,7 +59,7 @@ export default function TabLayout() {
                 name="analytics"
                 options={{
                     title: 'Analytics',
-                    tabBarIcon: ({ color, size }) => (
+                    tabBarIcon: ({ color }) => (
                         <Ionicons name="stats-chart" size={24} color={color} />
                     ),
                 }}
@@ -67,7 +68,7 @@ export default function TabLayout() {
                 name="account"
                 options={{
                     title: 'Account',
-                    tabBarIcon: ({ color, size }) => (
+                    tabBarIcon: ({ color }) => (
                         <Ionicons name="person" size={24} color={color} />
                     ),
                 }}

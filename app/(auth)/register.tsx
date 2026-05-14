@@ -6,7 +6,6 @@ import {
     KeyboardAvoidingView,
     Platform,
     ScrollView,
-    StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
@@ -18,9 +17,11 @@ import { useDispatch } from 'react-redux';
 import { Button } from '../../src/components/common/Button';
 import apiClient from '../../src/store/api/apiClient';
 import { setCredentials, setError } from '../../src/store/slices/authSlice';
-import { borderRadius, colors, shadows, spacing, typography } from '../../src/theme';
+import { borderRadius, elevation, makeStyles, spacing, typography, useTheme } from '../../src/theme';
 
 export default function RegisterScreen() {
+    const styles = useStyles();
+    const { colors } = useTheme();
     const router = useRouter();
     const dispatch = useDispatch();
     const insets = useSafeAreaInsets();
@@ -205,10 +206,10 @@ export default function RegisterScreen() {
     );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c, isDark) => ({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
+        backgroundColor: c.background,
     },
     scrollContent: {
         flexGrow: 1,
@@ -224,11 +225,11 @@ const styles = StyleSheet.create({
         width: 80,
         height: 80,
         borderRadius: 40,
-        backgroundColor: colors.cardBg,
+        backgroundColor: c.cardBg,
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: spacing.lg,
-        ...shadows.cardHeavy,
+        ...elevation(isDark).cardHeavy,
     },
     logoEmoji: {
         fontSize: 40,
@@ -236,13 +237,13 @@ const styles = StyleSheet.create({
     title: {
         fontFamily: typography.fontFamily.bold,
         fontSize: typography.sizes.xxl,
-        color: colors.textMain,
+        color: c.textMain,
         marginBottom: spacing.xs,
     },
     subtitle: {
         fontFamily: typography.fontFamily.regular,
         fontSize: typography.sizes.md,
-        color: colors.textMain,
+        color: c.textMain,
         opacity: 0.8,
     },
     formContainer: {
@@ -256,16 +257,16 @@ const styles = StyleSheet.create({
     label: {
         fontFamily: typography.fontFamily.medium,
         fontSize: typography.sizes.sm,
-        color: colors.textMain,
+        color: c.textMain,
         marginBottom: spacing.sm,
     },
     input: {
-        backgroundColor: colors.inputBg,
+        backgroundColor: c.inputBg,
         borderRadius: borderRadius.md,
         padding: spacing.lg,
         fontFamily: typography.fontFamily.regular,
         fontSize: typography.sizes.md,
-        color: colors.textMain,
+        color: c.textMain,
     },
     passwordContainer: {
         position: 'relative',
@@ -295,11 +296,11 @@ const styles = StyleSheet.create({
     loginText: {
         fontFamily: typography.fontFamily.regular,
         fontSize: typography.sizes.md,
-        color: colors.textSecondary,
+        color: c.textSecondary,
     },
     loginLink: {
         fontFamily: typography.fontFamily.semiBold,
         fontSize: typography.sizes.md,
-        color: colors.primary,
+        color: c.primary,
     },
-});
+}));
