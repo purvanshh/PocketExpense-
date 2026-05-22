@@ -6,7 +6,6 @@ import {
     Dimensions,
     RefreshControl,
     ScrollView,
-    StyleSheet,
     Text,
     TouchableOpacity,
     View,
@@ -16,12 +15,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Card } from '../src/components/common/Card';
 import { useAppDispatch, useAppSelector } from '../src/store/hooks';
 import { fetchAdvancedInsights } from '../src/store/slices/insightSlice';
-import { borderRadius, categories, colors, shadows, spacing, typography } from '../src/theme';
+import { borderRadius, categoryTint, makeStyles, spacing, typography, useTheme } from '../src/theme';
 import { formatCurrency } from '../src/utils/formatters';
 
 const { width } = Dimensions.get('window');
 
 export default function InsightsScreen() {
+    const styles = useStyles();
+    const { colors, isDark } = useTheme();
     const router = useRouter();
     const dispatch = useAppDispatch();
     const insets = useSafeAreaInsets();
@@ -94,7 +95,7 @@ export default function InsightsScreen() {
                     <Text style={styles.sectionTitle}>Top 3 Categories</Text>
                 </View>
                 {topCats.map((cat, index) => {
-                    const catInfo = categories[cat._id as keyof typeof categories];
+                    const catInfo = categoryTint(cat._id, isDark);
                     const percentage = (cat.total / maxTotal) * 100;
                     return (
                         <View key={cat._id} style={styles.categoryRow}>
@@ -174,7 +175,7 @@ export default function InsightsScreen() {
                     Avg: {formatCurrency(anomalies.stats?.mean || 0, user?.currency)} | Std Dev: {formatCurrency(anomalies.stats?.stdDev || 0, user?.currency)}
                 </Text>
                 {anomalies.items.map((item, index) => {
-                    const catInfo = categories[item.category as keyof typeof categories];
+                    const catInfo = categoryTint(item.category, isDark);
                     return (
                         <View key={index} style={styles.anomalyRow}>
                             <View style={styles.anomalyLeft}>
@@ -243,54 +244,54 @@ export default function InsightsScreen() {
     );
 }
 
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.background },
+const useStyles = makeStyles((c, isDark) => ({
+    container: { flex: 1, backgroundColor: c.background },
     headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
     backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-    headerTitle: { fontFamily: typography.fontFamily.bold, fontSize: typography.sizes.xl, color: colors.textMain },
+    headerTitle: { fontFamily: typography.fontFamily.bold, fontSize: typography.sizes.xl, color: c.textMain },
     scrollView: { flex: 1 },
     scrollContent: { paddingHorizontal: spacing.xl, paddingBottom: 40 },
     loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    loadingText: { fontFamily: typography.fontFamily.medium, fontSize: typography.sizes.md, color: colors.textSecondary, marginTop: spacing.lg },
+    loadingText: { fontFamily: typography.fontFamily.medium, fontSize: typography.sizes.md, color: c.textSecondary, marginTop: spacing.lg },
     sectionCard: { marginBottom: spacing.lg },
     sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md },
-    sectionTitle: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.sizes.lg, color: colors.textMain },
-    avgGrowth: { fontFamily: typography.fontFamily.medium, fontSize: typography.sizes.sm, color: colors.textSecondary, marginBottom: spacing.md },
+    sectionTitle: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.sizes.lg, color: c.textMain },
+    avgGrowth: { fontFamily: typography.fontFamily.medium, fontSize: typography.sizes.sm, color: c.textSecondary, marginBottom: spacing.md },
     chartContainer: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'flex-end', height: 170, paddingTop: spacing.md },
     barGroup: { alignItems: 'center' },
     barWrapper: { height: 120, justifyContent: 'flex-end' },
     bar: { borderTopLeftRadius: 6, borderTopRightRadius: 6, minHeight: 4 },
-    barLabel: { fontFamily: typography.fontFamily.regular, fontSize: typography.sizes.xs, color: colors.textSecondary, marginTop: 4 },
+    barLabel: { fontFamily: typography.fontFamily.regular, fontSize: typography.sizes.xs, color: c.textSecondary, marginTop: 4 },
     growthLabel: { fontFamily: typography.fontFamily.medium, fontSize: 9 },
-    categoryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.inputBg },
+    categoryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: c.inputBg },
     categoryLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-    rankBadge: { fontFamily: typography.fontFamily.bold, fontSize: typography.sizes.lg, color: colors.primary, width: 24 },
+    rankBadge: { fontFamily: typography.fontFamily.bold, fontSize: typography.sizes.lg, color: c.primary, width: 24 },
     catIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginRight: spacing.sm },
     catInfo: {},
-    catName: { fontFamily: typography.fontFamily.medium, fontSize: typography.sizes.md, color: colors.textMain },
-    catCount: { fontFamily: typography.fontFamily.regular, fontSize: typography.sizes.xs, color: colors.textSecondary },
+    catName: { fontFamily: typography.fontFamily.medium, fontSize: typography.sizes.md, color: c.textMain },
+    catCount: { fontFamily: typography.fontFamily.regular, fontSize: typography.sizes.xs, color: c.textSecondary },
     categoryRight: { alignItems: 'flex-end' },
-    catAmount: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.sizes.md, color: colors.textMain },
-    miniBar: { height: 4, width: 60, backgroundColor: colors.inputBg, borderRadius: 2, marginTop: 4 },
-    miniBarFill: { height: '100%', backgroundColor: colors.primary, borderRadius: 2 },
+    catAmount: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.sizes.md, color: c.textMain },
+    miniBar: { height: 4, width: 60, backgroundColor: c.inputBg, borderRadius: 2, marginTop: 4 },
+    miniBarFill: { height: '100%', backgroundColor: c.primary, borderRadius: 2 },
     comparisonRow: { flexDirection: 'row', gap: spacing.md },
     comparisonItem: { flex: 1, alignItems: 'center' },
-    comparisonLabel: { fontFamily: typography.fontFamily.medium, fontSize: typography.sizes.sm, color: colors.textSecondary },
-    comparisonAmount: { fontFamily: typography.fontFamily.bold, fontSize: typography.sizes.xl, color: colors.textMain, marginVertical: spacing.xs },
-    comparisonSub: { fontFamily: typography.fontFamily.regular, fontSize: typography.sizes.xs, color: colors.textSecondary },
+    comparisonLabel: { fontFamily: typography.fontFamily.medium, fontSize: typography.sizes.sm, color: c.textSecondary },
+    comparisonAmount: { fontFamily: typography.fontFamily.bold, fontSize: typography.sizes.xl, color: c.textMain, marginVertical: spacing.xs },
+    comparisonSub: { fontFamily: typography.fontFamily.regular, fontSize: typography.sizes.xs, color: c.textSecondary },
     comparisonBar: { height: 6, width: '100%', borderRadius: 3, marginTop: spacing.sm, opacity: 0.3 },
-    comparisonPct: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.sizes.sm, color: colors.textMain, marginTop: 4 },
-    divider: { width: 1, backgroundColor: colors.inputBg },
-    anomalyInfo: { fontFamily: typography.fontFamily.regular, fontSize: typography.sizes.sm, color: colors.textSecondary, marginBottom: spacing.md },
-    anomalyRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.inputBg },
+    comparisonPct: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.sizes.sm, color: c.textMain, marginTop: 4 },
+    divider: { width: 1, backgroundColor: c.inputBg },
+    anomalyInfo: { fontFamily: typography.fontFamily.regular, fontSize: typography.sizes.sm, color: c.textSecondary, marginBottom: spacing.md },
+    anomalyRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: c.inputBg },
     anomalyLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-    anomalyCategory: { fontFamily: typography.fontFamily.medium, fontSize: typography.sizes.md, color: colors.textMain },
-    anomalyDate: { fontFamily: typography.fontFamily.regular, fontSize: typography.sizes.xs, color: colors.textSecondary },
+    anomalyCategory: { fontFamily: typography.fontFamily.medium, fontSize: typography.sizes.md, color: c.textMain },
+    anomalyDate: { fontFamily: typography.fontFamily.regular, fontSize: typography.sizes.xs, color: c.textSecondary },
     anomalyRight: { alignItems: 'flex-end' },
-    anomalyAmount: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.sizes.md, color: colors.error },
+    anomalyAmount: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.sizes.md, color: c.error },
     zScore: { fontFamily: typography.fontFamily.medium, fontSize: typography.sizes.xs },
     emptyState: { alignItems: 'center', paddingVertical: spacing.xxxl * 2 },
     emptyIcon: { fontSize: 48, marginBottom: spacing.md },
-    emptyText: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.sizes.lg, color: colors.textMain },
-    emptySubtext: { fontFamily: typography.fontFamily.regular, fontSize: typography.sizes.sm, color: colors.textSecondary, textAlign: 'center' },
-});
+    emptyText: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.sizes.lg, color: c.textMain },
+    emptySubtext: { fontFamily: typography.fontFamily.regular, fontSize: typography.sizes.sm, color: c.textSecondary, textAlign: 'center' },
+}));

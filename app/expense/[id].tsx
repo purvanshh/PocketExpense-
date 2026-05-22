@@ -6,7 +6,6 @@ import {
     Alert,
     Platform,
     ScrollView,
-    StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
@@ -22,17 +21,12 @@ import { CategoryGrid } from '../../src/components/expense/CategoryGrid';
 import { syncEngine } from '../../src/services/syncEngine';
 import { useAppSelector } from '../../src/store/hooks';
 import { deleteExpense, updateExpense } from '../../src/store/slices/expenseSlice';
-import {
-    borderRadius,
-    categories,
-    colors,
-    paymentMethods,
-    spacing,
-    typography,
-} from '../../src/theme';
+import { borderRadius, categoryTint, makeStyles, paymentMethods, spacing, typography, useTheme } from '../../src/theme';
 import { formatDate } from '../../src/utils/formatters';
 
 export default function EditExpenseScreen() {
+    const styles = useStyles();
+    const { colors, isDark } = useTheme();
     const router = useRouter();
     const dispatch = useDispatch();
     const insets = useSafeAreaInsets();
@@ -82,7 +76,7 @@ export default function EditExpenseScreen() {
 
         setIsSubmitting(true);
 
-        const desc = description.trim() || categories[category as keyof typeof categories]?.label || '';
+        const desc = description.trim() || categoryTint(category, isDark).label;
 
         dispatch(
             updateExpense({
@@ -286,10 +280,10 @@ export default function EditExpenseScreen() {
     );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c, isDark) => ({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
+        backgroundColor: c.background,
     },
     centered: {
         alignItems: 'center',
@@ -298,7 +292,7 @@ const styles = StyleSheet.create({
     errorText: {
         fontFamily: typography.fontFamily.medium,
         fontSize: typography.sizes.lg,
-        color: colors.textSecondary,
+        color: c.textSecondary,
         marginBottom: spacing.lg,
     },
     header: {
@@ -308,7 +302,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: spacing.lg,
         paddingVertical: spacing.md,
         borderBottomWidth: 1,
-        borderBottomColor: colors.inputBg,
+        borderBottomColor: c.inputBg,
     },
     backButton: {
         width: 40,
@@ -319,7 +313,7 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontFamily: typography.fontFamily.semiBold,
         fontSize: typography.sizes.lg,
-        color: colors.textMain,
+        color: c.textMain,
     },
     deleteButton: {
         width: 40,
@@ -336,7 +330,7 @@ const styles = StyleSheet.create({
     },
     typeToggle: {
         flexDirection: 'row',
-        backgroundColor: colors.inputBg,
+        backgroundColor: c.inputBg,
         borderRadius: borderRadius.full,
         padding: 4,
         marginTop: spacing.lg,
@@ -348,18 +342,18 @@ const styles = StyleSheet.create({
         borderRadius: borderRadius.full,
     },
     typeButtonActiveExpense: {
-        backgroundColor: colors.error,
+        backgroundColor: c.error,
     },
     typeButtonActiveIncome: {
-        backgroundColor: colors.success,
+        backgroundColor: c.success,
     },
     typeButtonText: {
         fontFamily: typography.fontFamily.medium,
         fontSize: typography.sizes.md,
-        color: colors.textSecondary,
+        color: c.textSecondary,
     },
     typeButtonTextActive: {
-        color: colors.textWhite,
+        color: c.textWhite,
     },
     section: {
         marginTop: spacing.xl,
@@ -367,26 +361,26 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontFamily: typography.fontFamily.semiBold,
         fontSize: typography.sizes.lg,
-        color: colors.textMain,
+        color: c.textMain,
         marginBottom: spacing.md,
     },
     categoryCard: {
         paddingVertical: spacing.md,
     },
     descriptionInput: {
-        backgroundColor: colors.inputBg,
+        backgroundColor: c.inputBg,
         borderRadius: borderRadius.lg,
         padding: spacing.lg,
         fontFamily: typography.fontFamily.regular,
         fontSize: typography.sizes.md,
-        color: colors.textMain,
+        color: c.textMain,
         minHeight: 80,
         textAlignVertical: 'top',
     },
     dateButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.inputBg,
+        backgroundColor: c.inputBg,
         borderRadius: borderRadius.lg,
         padding: spacing.lg,
         gap: spacing.md,
@@ -395,7 +389,7 @@ const styles = StyleSheet.create({
         flex: 1,
         fontFamily: typography.fontFamily.medium,
         fontSize: typography.sizes.md,
-        color: colors.textMain,
+        color: c.textMain,
     },
     paymentMethods: {
         flexDirection: 'row',
@@ -405,14 +399,14 @@ const styles = StyleSheet.create({
     paymentButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.inputBg,
+        backgroundColor: c.inputBg,
         borderRadius: borderRadius.full,
         paddingVertical: spacing.sm,
         paddingHorizontal: spacing.md,
         gap: spacing.xs,
     },
     paymentButtonActive: {
-        backgroundColor: colors.primary,
+        backgroundColor: c.primary,
     },
     paymentIcon: {
         fontSize: 16,
@@ -420,12 +414,12 @@ const styles = StyleSheet.create({
     paymentText: {
         fontFamily: typography.fontFamily.medium,
         fontSize: typography.sizes.sm,
-        color: colors.textSecondary,
+        color: c.textSecondary,
     },
     paymentTextActive: {
-        color: colors.textWhite,
+        color: c.textWhite,
     },
     submitButton: {
         marginTop: spacing.xxl,
     },
-});
+}));

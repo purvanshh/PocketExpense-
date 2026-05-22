@@ -3,7 +3,6 @@ import React, { useEffect, useState } from 'react';
 import {
     RefreshControl,
     ScrollView,
-    StyleSheet,
     Text,
     TouchableOpacity,
     View,
@@ -15,7 +14,7 @@ import { SpendingChart } from '../../src/components/analytics/SpendingChart';
 import { Card } from '../../src/components/common/Card';
 import apiClient from '../../src/store/api/apiClient';
 import { useAppSelector } from '../../src/store/hooks';
-import { borderRadius, colors, shadows, spacing, typography } from '../../src/theme';
+import { borderRadius, elevation, makeStyles, spacing, typography, useTheme } from '../../src/theme';
 import { formatCurrency } from '../../src/utils/formatters';
 
 interface InsightsData {
@@ -44,6 +43,8 @@ interface InsightsData {
 }
 
 export default function AnalyticsScreen() {
+    const styles = useStyles();
+    const { colors } = useTheme();
     const insets = useSafeAreaInsets();
     const { user } = useAppSelector((state) => state.auth);
     const { items, totalExpense, totalIncome } = useAppSelector(
@@ -261,10 +262,10 @@ export default function AnalyticsScreen() {
     );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c, isDark) => ({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
+        backgroundColor: c.background,
     },
     scrollView: {
         flex: 1,
@@ -279,7 +280,7 @@ const styles = StyleSheet.create({
     title: {
         fontFamily: typography.fontFamily.bold,
         fontSize: typography.sizes.xxl,
-        color: colors.textMain,
+        color: c.textMain,
     },
     toggleContainer: {
         flexDirection: 'row',
@@ -289,19 +290,19 @@ const styles = StyleSheet.create({
         paddingHorizontal: spacing.lg,
         paddingVertical: spacing.sm,
         borderRadius: borderRadius.full,
-        backgroundColor: colors.inputBg,
+        backgroundColor: c.inputBg,
     },
     toggleButtonActive: {
-        backgroundColor: colors.cardBg,
-        ...shadows.card,
+        backgroundColor: c.cardBg,
+        ...elevation(isDark).card,
     },
     toggleText: {
         fontFamily: typography.fontFamily.medium,
         fontSize: typography.sizes.sm,
-        color: colors.textSecondary,
+        color: c.textSecondary,
     },
     toggleTextActive: {
-        color: colors.textMain,
+        color: c.textMain,
     },
     chartCard: {
         marginBottom: spacing.lg,
@@ -316,7 +317,7 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontFamily: typography.fontFamily.semiBold,
         fontSize: typography.sizes.xl,
-        color: colors.textMain,
+        color: c.textMain,
         marginBottom: spacing.lg,
     },
     historyCard: {
@@ -331,18 +332,18 @@ const styles = StyleSheet.create({
     },
     historyItemBorder: {
         borderBottomWidth: 1,
-        borderBottomColor: colors.inputBg,
+        borderBottomColor: c.inputBg,
     },
     historyLabel: {
         fontFamily: typography.fontFamily.regular,
         fontSize: typography.sizes.sm,
-        color: colors.textSecondary,
+        color: c.textSecondary,
         marginBottom: 2,
     },
     historyDate: {
         fontFamily: typography.fontFamily.medium,
         fontSize: typography.sizes.md,
-        color: colors.textMain,
+        color: c.textMain,
     },
     historyAmounts: {
         alignItems: 'flex-end',
@@ -350,18 +351,18 @@ const styles = StyleSheet.create({
     historyIncome: {
         fontFamily: typography.fontFamily.semiBold,
         fontSize: typography.sizes.sm,
-        color: colors.success,
+        color: c.success,
     },
     historyExpense: {
         fontFamily: typography.fontFamily.semiBold,
         fontSize: typography.sizes.sm,
-        color: colors.error,
+        color: c.error,
     },
     emptyText: {
         fontFamily: typography.fontFamily.regular,
         fontSize: typography.sizes.md,
-        color: colors.textSecondary,
+        color: c.textSecondary,
         textAlign: 'center',
         padding: spacing.xl,
     },
-});
+}));

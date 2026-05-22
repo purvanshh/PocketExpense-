@@ -7,7 +7,6 @@ import {
     FlatList,
     Modal,
     ScrollView,
-    StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
@@ -25,10 +24,12 @@ import {
     fetchBudgets,
     updateBudget,
 } from '../src/store/slices/budgetSlice';
-import { borderRadius, categories, colors, shadows, spacing, typography } from '../src/theme';
+import { borderRadius, categories, categoryTint, makeStyles, spacing, typography, useTheme } from '../src/theme';
 import { formatCurrency } from '../src/utils/formatters';
 
 export default function BudgetsScreen() {
+    const styles = useStyles();
+    const { colors, isDark } = useTheme();
     const router = useRouter();
     const dispatch = useAppDispatch();
     const insets = useSafeAreaInsets();
@@ -120,7 +121,7 @@ export default function BudgetsScreen() {
     );
 
     const renderBudgetItem = useCallback(({ item }: { item: Budget }) => {
-        const catInfo = categories[item.category as keyof typeof categories];
+        const catInfo = categoryTint(item.category, isDark);
         const statusColor = getStatusColor(item.percentageUsed);
 
         return (
@@ -299,8 +300,8 @@ export default function BudgetsScreen() {
     );
 }
 
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.background },
+const useStyles = makeStyles((c, isDark) => ({
+    container: { flex: 1, backgroundColor: c.background },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -310,11 +311,11 @@ const styles = StyleSheet.create({
     },
     backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
     addBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-    title: { fontFamily: typography.fontFamily.bold, fontSize: typography.sizes.xxl, color: colors.textMain },
+    title: { fontFamily: typography.fontFamily.bold, fontSize: typography.sizes.xxl, color: c.textMain },
     summaryCard: { marginHorizontal: spacing.xl, marginBottom: spacing.lg, alignItems: 'center' as const },
-    summaryLabel: { fontFamily: typography.fontFamily.regular, fontSize: typography.sizes.sm, color: colors.textSecondary },
-    summaryAmount: { fontFamily: typography.fontFamily.bold, fontSize: typography.sizes.xxxl, color: colors.textMain, marginVertical: spacing.xs },
-    summarySubtext: { fontFamily: typography.fontFamily.regular, fontSize: typography.sizes.sm, color: colors.textSecondary, marginTop: spacing.sm },
+    summaryLabel: { fontFamily: typography.fontFamily.regular, fontSize: typography.sizes.sm, color: c.textSecondary },
+    summaryAmount: { fontFamily: typography.fontFamily.bold, fontSize: typography.sizes.xxxl, color: c.textMain, marginVertical: spacing.xs },
+    summarySubtext: { fontFamily: typography.fontFamily.regular, fontSize: typography.sizes.sm, color: c.textSecondary, marginTop: spacing.sm },
     listContent: { paddingHorizontal: spacing.xl, paddingBottom: 40 },
     budgetCard: { marginBottom: spacing.md },
     budgetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
@@ -322,43 +323,43 @@ const styles = StyleSheet.create({
     categoryIcon: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md },
     categoryEmoji: { fontSize: 20 },
     budgetInfo: { flex: 1 },
-    budgetCategory: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.sizes.md, color: colors.textMain },
-    budgetAmountLabel: { fontFamily: typography.fontFamily.regular, fontSize: typography.sizes.sm, color: colors.textSecondary, marginTop: 2 },
+    budgetCategory: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.sizes.md, color: c.textMain },
+    budgetAmountLabel: { fontFamily: typography.fontFamily.regular, fontSize: typography.sizes.sm, color: c.textSecondary, marginTop: 2 },
     budgetActions: { flexDirection: 'row', gap: spacing.xs },
     actionBtn: { padding: spacing.sm },
     progressContainer: { marginTop: spacing.md },
-    progressBar: { height: 8, backgroundColor: colors.inputBg, borderRadius: 4, overflow: 'hidden' },
+    progressBar: { height: 8, backgroundColor: c.inputBg, borderRadius: 4, overflow: 'hidden' },
     progressFill: { height: '100%', borderRadius: 4 },
     budgetFooter: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.sm },
     percentageText: { fontFamily: typography.fontFamily.medium, fontSize: typography.sizes.sm },
-    remainingText: { fontFamily: typography.fontFamily.regular, fontSize: typography.sizes.sm, color: colors.textSecondary },
+    remainingText: { fontFamily: typography.fontFamily.regular, fontSize: typography.sizes.sm, color: c.textSecondary },
     emptyState: { alignItems: 'center', paddingVertical: spacing.xxxl * 2 },
     emptyIcon: { fontSize: 48, marginBottom: spacing.md },
-    emptyText: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.sizes.lg, color: colors.textMain },
-    emptySubtext: { fontFamily: typography.fontFamily.regular, fontSize: typography.sizes.sm, color: colors.textSecondary, textAlign: 'center', paddingHorizontal: spacing.xl, marginTop: spacing.xs },
-    modalOverlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'flex-end' },
-    modalContent: { backgroundColor: colors.cardBg, borderTopLeftRadius: borderRadius.xl, borderTopRightRadius: borderRadius.xl, padding: spacing.xl, maxHeight: '85%' },
+    emptyText: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.sizes.lg, color: c.textMain },
+    emptySubtext: { fontFamily: typography.fontFamily.regular, fontSize: typography.sizes.sm, color: c.textSecondary, textAlign: 'center', paddingHorizontal: spacing.xl, marginTop: spacing.xs },
+    modalOverlay: { flex: 1, backgroundColor: c.overlay, justifyContent: 'flex-end' },
+    modalContent: { backgroundColor: c.cardBg, borderTopLeftRadius: borderRadius.xl, borderTopRightRadius: borderRadius.xl, padding: spacing.xl, maxHeight: '85%' },
     modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xl },
-    modalTitle: { fontFamily: typography.fontFamily.bold, fontSize: typography.sizes.xl, color: colors.textMain },
-    fieldLabel: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.sizes.md, color: colors.textMain, marginBottom: spacing.sm, marginTop: spacing.lg },
+    modalTitle: { fontFamily: typography.fontFamily.bold, fontSize: typography.sizes.xl, color: c.textMain },
+    fieldLabel: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.sizes.md, color: c.textMain, marginBottom: spacing.sm, marginTop: spacing.lg },
     amountInput: {
-        backgroundColor: colors.inputBg,
+        backgroundColor: c.inputBg,
         borderRadius: borderRadius.lg,
         padding: spacing.lg,
         fontFamily: typography.fontFamily.bold,
         fontSize: typography.sizes.xxl,
-        color: colors.textMain,
+        color: c.textMain,
     },
     categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
     categoryChip: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.inputBg,
+        backgroundColor: c.inputBg,
         borderRadius: borderRadius.full,
         paddingVertical: spacing.sm,
         paddingHorizontal: spacing.md,
         gap: spacing.xs,
     },
     chipEmoji: { fontSize: 14 },
-    chipLabel: { fontFamily: typography.fontFamily.medium, fontSize: typography.sizes.sm, color: colors.textMain },
-});
+    chipLabel: { fontFamily: typography.fontFamily.medium, fontSize: typography.sizes.sm, color: c.textMain },
+}));

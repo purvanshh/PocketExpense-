@@ -3,7 +3,6 @@ import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import {
     FlatList,
-    StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
@@ -15,9 +14,11 @@ import { FilterModal, FilterState } from '../../src/components/expense/FilterMod
 import { TransactionItem } from '../../src/components/home/TransactionItem';
 import { useAppSelector } from '../../src/store/hooks';
 import { Expense } from '../../src/store/slices/expenseSlice';
-import { borderRadius, categories, colors, spacing, typography } from '../../src/theme';
+import { borderRadius, categoryTint, makeStyles, spacing, typography, useTheme } from '../../src/theme';
 
 export default function TransactionsScreen() {
+    const styles = useStyles();
+    const { colors, isDark } = useTheme();
     const router = useRouter();
     const insets = useSafeAreaInsets();
 
@@ -65,7 +66,7 @@ export default function TransactionsScreen() {
         if (searchQuery) {
             const query = searchQuery.toLowerCase();
             result = result.filter((item) => {
-                const categoryLabel = categories[item.category as keyof typeof categories]?.label || '';
+                const categoryLabel = categoryTint(item.category, isDark).label;
                 return (
                     item.description.toLowerCase().includes(query) ||
                     categoryLabel.toLowerCase().includes(query)
@@ -167,8 +168,8 @@ export default function TransactionsScreen() {
     );
 }
 
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.background },
+const useStyles = makeStyles((c, isDark) => ({
+    container: { flex: 1, backgroundColor: c.background },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -176,8 +177,8 @@ const styles = StyleSheet.create({
         paddingHorizontal: spacing.xl,
         paddingVertical: spacing.lg,
     },
-    title: { fontFamily: typography.fontFamily.bold, fontSize: typography.sizes.xxl, color: colors.textMain },
-    countText: { fontFamily: typography.fontFamily.regular, fontSize: typography.sizes.sm, color: colors.textSecondary },
+    title: { fontFamily: typography.fontFamily.bold, fontSize: typography.sizes.xxl, color: c.textMain },
+    countText: { fontFamily: typography.fontFamily.regular, fontSize: typography.sizes.sm, color: c.textSecondary },
     searchRow: {
         flexDirection: 'row',
         paddingHorizontal: spacing.xl,
@@ -188,7 +189,7 @@ const styles = StyleSheet.create({
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.inputBg,
+        backgroundColor: c.inputBg,
         paddingHorizontal: spacing.lg,
         paddingVertical: spacing.md,
         borderRadius: borderRadius.lg,
@@ -198,32 +199,32 @@ const styles = StyleSheet.create({
         flex: 1,
         fontFamily: typography.fontFamily.regular,
         fontSize: typography.sizes.md,
-        color: colors.textMain,
+        color: c.textMain,
     },
     filterBtn: {
         width: 48,
         height: 48,
         borderRadius: borderRadius.lg,
-        backgroundColor: colors.inputBg,
+        backgroundColor: c.inputBg,
         alignItems: 'center',
         justifyContent: 'center',
     },
-    filterBtnActive: { backgroundColor: colors.primary },
+    filterBtnActive: { backgroundColor: c.primary },
     filterBadge: {
         position: 'absolute',
         top: 4,
         right: 4,
-        backgroundColor: colors.error,
+        backgroundColor: c.error,
         borderRadius: 8,
         minWidth: 16,
         height: 16,
         alignItems: 'center',
         justifyContent: 'center',
     },
-    filterBadgeText: { color: colors.textWhite, fontSize: 10, fontWeight: 'bold' },
+    filterBadgeText: { color: c.textWhite, fontSize: 10, fontWeight: 'bold' },
     listContent: { paddingHorizontal: spacing.xl, paddingBottom: 120 },
     emptyState: { alignItems: 'center', paddingVertical: spacing.xxxl * 2 },
     emptyIcon: { fontSize: 48, marginBottom: spacing.md },
-    emptyText: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.sizes.lg, color: colors.textMain, marginBottom: spacing.xs },
-    emptySubtext: { fontFamily: typography.fontFamily.regular, fontSize: typography.sizes.sm, color: colors.textSecondary },
-});
+    emptyText: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.sizes.lg, color: c.textMain, marginBottom: spacing.xs },
+    emptySubtext: { fontFamily: typography.fontFamily.regular, fontSize: typography.sizes.sm, color: c.textSecondary },
+}));
