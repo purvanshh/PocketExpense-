@@ -1,10 +1,12 @@
 import { configureStore } from '@reduxjs/toolkit';
+import { persistListener } from './persistMiddleware';
 import authReducer from './slices/authSlice';
-import expenseReducer from './slices/expenseSlice';
-import syncReducer from './slices/syncSlice';
 import budgetReducer from './slices/budgetSlice';
+import expenseReducer from './slices/expenseSlice';
 import insightReducer from './slices/insightSlice';
+import notificationReducer from './slices/notificationSlice';
 import smsReducer from './slices/smsSlice';
+import syncReducer from './slices/syncSlice';
 
 export const store = configureStore({
     reducer: {
@@ -14,6 +16,7 @@ export const store = configureStore({
         budgets: budgetReducer,
         insights: insightReducer,
         sms: smsReducer,
+        notifications: notificationReducer,
     },
     middleware: (getDefaultMiddleware) =>
         getDefaultMiddleware({
@@ -29,7 +32,7 @@ export const store = configureStore({
                 ],
                 ignoredPaths: ['expenses.items', 'expenses.pendingQueue'],
             },
-        }),
+        }).prepend(persistListener.middleware),
 });
 
 export type RootState = ReturnType<typeof store.getState>;
