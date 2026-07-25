@@ -1,11 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     RefreshControl,
     ScrollView,
-    StyleSheet,
     Text,
     TouchableOpacity,
     View
@@ -21,9 +20,13 @@ import { TransactionItem } from '../../src/components/home/TransactionItem';
 import { SyncIndicator } from '../../src/components/sync/SyncIndicator';
 import { syncEngine } from '../../src/services/syncEngine';
 import { useAppSelector } from '../../src/store/hooks';
-import { borderRadius, colors, shadows, spacing, typography } from '../../src/theme';
+import { selectUnreadCount } from '../../src/store/slices/notificationSlice';
+import { borderRadius, elevation, makeStyles, spacing, typography, useTheme } from '../../src/theme';
+import { monthOverMonthChange, totalsForMonth } from '../../src/utils/stats';
 
 export default function HomeScreen() {
+    const styles = useStyles();
+    const { colors } = useTheme();
     const router = useRouter();
     const dispatch = useDispatch();
     const insets = useSafeAreaInsets();
@@ -35,24 +38,53 @@ export default function HomeScreen() {
     const { isOnline, isSyncing, pendingCount } = useAppSelector(
         (state) => state.sync
     );
+    const notifications = useAppSelector((state) => state.notifications.items);
+    const unreadCount = selectUnreadCount(notifications);
 
     const [refreshing, setRefreshing] = useState(false);
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [showDatePicker, setShowDatePicker] = useState(false);
 
-    // Recent transactions (last 5)
-    // Filter by selected month/year if needed, but for now showing all recent
-    const recentTransactions = items.slice(0, 5);
+    // The header date acts as a month selector: picking any day shows that
+    // month's figures rather than always showing the current one.
+    const isCurrentMonth =
+        selectedDate.getMonth() === new Date().getMonth() &&
+        selectedDate.getFullYear() === new Date().getFullYear();
 
-    // Calculate balance
-    const balance = totalIncome - totalExpense;
+    const monthTotals = useMemo(
+        () => totalsForMonth(items, selectedDate),
+        [items, selectedDate]
+    );
 
-    // Placeholder for percentage change (would come from insights API)
-    const percentageChange = -67; // Mock data
+    const percentageChange = useMemo(
+        () => monthOverMonthChange(items, selectedDate),
+        [items, selectedDate]
+    );
+
+    // Recent transactions for the selected month, newest first.
+    const recentTransactions = useMemo(() => {
+        const start = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+        const end = new Date(
+            selectedDate.getFullYear(),
+            selectedDate.getMonth() + 1,
+            0, 23, 59, 59, 999
+        );
+
+        return items
+            .filter((item) => {
+                const d = new Date(item.date);
+                return d >= start && d <= end;
+            })
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+            .slice(0, 5);
+    }, [items, selectedDate]);
+
+    const balance = monthTotals.income - monthTotals.expense;
 
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
-        await syncEngine.fullSync();
+        // An explicit pull-to-refresh overrides any active backoff window.
+        await syncEngine.fullSync(true);
         setRefreshing(false);
     }, []);
 
@@ -64,7 +96,6 @@ export default function HomeScreen() {
     const handleDateSelect = (date: Date) => {
         setSelectedDate(date);
         setShowDatePicker(false);
-        // Here you would typically filter data by this date
     };
 
     return (
@@ -104,10 +135,14 @@ export default function HomeScreen() {
                             style={styles.iconButton}
                             onPress={() => router.push('/notifications')}
                         >
-                            <Ionicons name="notifications-outline" size={24} color={colors.textMain} />
-                            {pendingCount > 0 && (
+                            <Ionicons
+                                name="notifications-outline"
+                                size={24}
+                                color={colors.textOnGradient}
+                            />
+                            {unreadCount > 0 && (
                                 <View style={styles.badge}>
-                                    <Text style={styles.badgeText}>{pendingCount}</Text>
+                                    <Text style={styles.badgeText}>{unreadCount}</Text>
                                 </View>
                             )}
                         </TouchableOpacity>
@@ -132,9 +167,14 @@ export default function HomeScreen() {
 
                     {/* Balance Card */}
                     <BalanceCard
-                        totalSpend={totalExpense}
+                        totalSpend={monthTotals.expense}
                         percentageChange={percentageChange}
                         currency={user?.currency}
+                        label={
+                            isCurrentMonth
+                                ? 'This Month Spend'
+                                : `${format(selectedDate, 'MMMM')} Spend`
+                        }
                     />
                 </GradientHeader>
 
@@ -197,10 +237,10 @@ export default function HomeScreen() {
     );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c, isDark) => ({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
+        backgroundColor: c.background,
     },
     scrollView: {
         flex: 1,
@@ -223,7 +263,7 @@ const styles = StyleSheet.create({
         position: 'absolute',
         top: 0,
         right: 0,
-        backgroundColor: colors.error,
+        backgroundColor: c.error,
         borderRadius: 10,
         minWidth: 18,
         height: 18,
@@ -231,7 +271,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     badgeText: {
-        color: colors.textWhite,
+        color: c.textWhite,
         fontSize: 10,
         fontWeight: 'bold',
     },
@@ -247,7 +287,7 @@ const styles = StyleSheet.create({
     dateText: {
         fontFamily: typography.fontFamily.medium,
         fontSize: typography.sizes.sm,
-        color: colors.textMain,
+        color: c.textMain,
     },
     syncContainer: {
         alignItems: 'center',
@@ -269,12 +309,12 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontFamily: typography.fontFamily.semiBold,
         fontSize: typography.sizes.xl,
-        color: colors.textMain,
+        color: c.textMain,
     },
     seeAllText: {
         fontFamily: typography.fontFamily.medium,
         fontSize: typography.sizes.sm,
-        color: colors.primary,
+        color: c.primary,
     },
     transactionsList: {
         gap: spacing.sm,
@@ -282,9 +322,9 @@ const styles = StyleSheet.create({
     emptyState: {
         alignItems: 'center',
         paddingVertical: spacing.xxxl,
-        backgroundColor: colors.cardBg,
+        backgroundColor: c.cardBg,
         borderRadius: borderRadius.xl,
-        ...shadows.card,
+        ...elevation(isDark).card,
     },
     emptyIcon: {
         fontSize: 48,
@@ -293,13 +333,13 @@ const styles = StyleSheet.create({
     emptyText: {
         fontFamily: typography.fontFamily.semiBold,
         fontSize: typography.sizes.lg,
-        color: colors.textMain,
+        color: c.textMain,
         marginBottom: spacing.xs,
     },
     emptySubtext: {
         fontFamily: typography.fontFamily.regular,
         fontSize: typography.sizes.sm,
-        color: colors.textSecondary,
+        color: c.textSecondary,
         textAlign: 'center',
         paddingHorizontal: spacing.xl,
     },
@@ -309,9 +349,9 @@ const styles = StyleSheet.create({
         width: 60,
         height: 60,
         borderRadius: 30,
-        backgroundColor: colors.primaryDark,
+        backgroundColor: c.primaryDark,
         alignItems: 'center',
         justifyContent: 'center',
-        ...shadows.fab,
+        ...elevation(isDark).fab,
     },
-});
+}));
