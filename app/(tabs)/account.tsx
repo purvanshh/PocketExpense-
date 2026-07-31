@@ -5,7 +5,6 @@ import {
     Alert,
     Platform,
     ScrollView,
-    StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
@@ -19,10 +18,12 @@ import { Card } from '../../src/components/common/Card';
 import apiClient from '../../src/store/api/apiClient';
 import { useAppSelector } from '../../src/store/hooks';
 import { logout, updateBudgetLimit } from '../../src/store/slices/authSlice';
-import { borderRadius, colors, spacing, typography } from '../../src/theme';
+import { borderRadius, makeStyles, spacing, typography, useTheme } from '../../src/theme';
 import { formatCurrency } from '../../src/utils/formatters';
 
 export default function AccountScreen() {
+    const styles = useStyles();
+    const { colors, isDark, mode } = useTheme();
     const router = useRouter();
     const dispatch = useDispatch();
     const insets = useSafeAreaInsets();
@@ -109,7 +110,7 @@ export default function AccountScreen() {
                         {isEditingBudget ? (
                             <View style={styles.editBudgetContainer}>
                                 <View style={styles.budgetInputContainer}>
-                                    <Text style={styles.currencySymbol}>$</Text>
+                                    <Text style={styles.currencySymbol}>₹</Text>
                                     <TextInput
                                         style={styles.budgetInput}
                                         value={budgetInput}
@@ -229,6 +230,26 @@ export default function AccountScreen() {
                             </View>
                             <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
                         </TouchableOpacity>
+
+                        <View style={styles.divider} />
+
+                        <TouchableOpacity
+                            style={styles.settingsItem}
+                            onPress={() => router.push('/export')}
+                        >
+                            <View style={styles.settingsItemLeft}>
+                                <View style={[styles.settingsIcon, { backgroundColor: colors.infoBg }]}>
+                                    <Ionicons name="download" size={20} color={colors.info} />
+                                </View>
+                                <View>
+                                    <Text style={styles.settingsItemText}>Export Data</Text>
+                                    <Text style={styles.settingsSubText}>
+                                        Download as CSV or PDF
+                                    </Text>
+                                </View>
+                            </View>
+                            <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+                        </TouchableOpacity>
                     </Card>
                 </View>
 
@@ -260,7 +281,36 @@ export default function AccountScreen() {
                             </>
                         )}
 
-                        <TouchableOpacity style={styles.settingsItem}>
+                        <TouchableOpacity
+                            style={styles.settingsItem}
+                            onPress={() => router.push('/settings/appearance')}
+                        >
+                            <View style={styles.settingsItemLeft}>
+                                <View style={[styles.settingsIcon, { backgroundColor: colors.inputBg }]}>
+                                    <Ionicons
+                                        name={isDark ? 'moon' : 'sunny'}
+                                        size={20}
+                                        color={colors.primary}
+                                    />
+                                </View>
+                                <View>
+                                    <Text style={styles.settingsItemText}>Appearance</Text>
+                                    <Text style={styles.settingsSubText}>
+                                        {mode === 'system'
+                                            ? 'Match system'
+                                            : mode === 'dark' ? 'Dark' : 'Light'}
+                                    </Text>
+                                </View>
+                            </View>
+                            <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+                        </TouchableOpacity>
+
+                        <View style={styles.divider} />
+
+                        <TouchableOpacity
+                            style={styles.settingsItem}
+                            onPress={() => router.push('/settings/notifications')}
+                        >
                             <View style={styles.settingsItemLeft}>
                                 <View style={[styles.settingsIcon, { backgroundColor: colors.infoBg }]}>
                                     <Ionicons name="notifications" size={20} color={colors.info} />
@@ -313,10 +363,10 @@ export default function AccountScreen() {
     );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c, isDark) => ({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
+        backgroundColor: c.background,
     },
     scrollView: {
         flex: 1,
@@ -331,7 +381,7 @@ const styles = StyleSheet.create({
     title: {
         fontFamily: typography.fontFamily.bold,
         fontSize: typography.sizes.xxl,
-        color: colors.textMain,
+        color: c.textMain,
     },
     profileCard: {
         alignItems: 'center',
@@ -344,25 +394,25 @@ const styles = StyleSheet.create({
         width: 80,
         height: 80,
         borderRadius: 40,
-        backgroundColor: colors.primary,
+        backgroundColor: c.primary,
         alignItems: 'center',
         justifyContent: 'center',
     },
     avatarText: {
         fontFamily: typography.fontFamily.bold,
         fontSize: typography.sizes.xxxl,
-        color: colors.textWhite,
+        color: c.textWhite,
     },
     userName: {
         fontFamily: typography.fontFamily.semiBold,
         fontSize: typography.sizes.xl,
-        color: colors.textMain,
+        color: c.textMain,
         marginBottom: spacing.xs,
     },
     userEmail: {
         fontFamily: typography.fontFamily.regular,
         fontSize: typography.sizes.md,
-        color: colors.textSecondary,
+        color: c.textSecondary,
     },
     section: {
         marginTop: spacing.xl,
@@ -370,7 +420,7 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontFamily: typography.fontFamily.semiBold,
         fontSize: typography.sizes.lg,
-        color: colors.textMain,
+        color: c.textMain,
         marginBottom: spacing.md,
     },
     budgetCard: {},
@@ -382,13 +432,13 @@ const styles = StyleSheet.create({
     budgetLabel: {
         fontFamily: typography.fontFamily.regular,
         fontSize: typography.sizes.sm,
-        color: colors.textSecondary,
+        color: c.textSecondary,
         marginBottom: spacing.xs,
     },
     budgetAmount: {
         fontFamily: typography.fontFamily.bold,
         fontSize: typography.sizes.xxl,
-        color: colors.textMain,
+        color: c.textMain,
     },
     editButton: {
         padding: spacing.sm,
@@ -398,7 +448,7 @@ const styles = StyleSheet.create({
     },
     progressBar: {
         height: 8,
-        backgroundColor: colors.inputBg,
+        backgroundColor: c.inputBg,
         borderRadius: 4,
         overflow: 'hidden',
     },
@@ -414,20 +464,20 @@ const styles = StyleSheet.create({
     budgetSpent: {
         fontFamily: typography.fontFamily.regular,
         fontSize: typography.sizes.sm,
-        color: colors.textSecondary,
+        color: c.textSecondary,
     },
     budgetRemaining: {
         fontFamily: typography.fontFamily.medium,
         fontSize: typography.sizes.sm,
-        color: colors.success,
+        color: c.success,
     },
     overBudget: {
-        color: colors.error,
+        color: c.error,
     },
     noBudgetText: {
         fontFamily: typography.fontFamily.regular,
         fontSize: typography.sizes.sm,
-        color: colors.textSecondary,
+        color: c.textSecondary,
         marginTop: spacing.md,
     },
     editBudgetContainer: {},
@@ -439,13 +489,13 @@ const styles = StyleSheet.create({
     currencySymbol: {
         fontFamily: typography.fontFamily.bold,
         fontSize: typography.sizes.xxl,
-        color: colors.textMain,
+        color: c.textMain,
         marginRight: spacing.xs,
     },
     budgetInput: {
         fontFamily: typography.fontFamily.bold,
         fontSize: typography.sizes.xxl,
-        color: colors.textMain,
+        color: c.textMain,
         flex: 1,
     },
     budgetActions: {
@@ -460,7 +510,7 @@ const styles = StyleSheet.create({
     cancelButtonText: {
         fontFamily: typography.fontFamily.medium,
         fontSize: typography.sizes.md,
-        color: colors.textSecondary,
+        color: c.textSecondary,
     },
     settingsCard: {
         padding: 0,
@@ -486,22 +536,22 @@ const styles = StyleSheet.create({
     settingsItemText: {
         fontFamily: typography.fontFamily.medium,
         fontSize: typography.sizes.md,
-        color: colors.textMain,
+        color: c.textMain,
     },
     settingsSubText: {
         fontFamily: typography.fontFamily.regular,
         fontSize: typography.sizes.xs,
-        color: colors.textSecondary,
+        color: c.textSecondary,
         marginTop: 1,
     },
     settingsValue: {
         fontFamily: typography.fontFamily.regular,
         fontSize: typography.sizes.sm,
-        color: colors.textSecondary,
+        color: c.textSecondary,
     },
     divider: {
         height: 1,
-        backgroundColor: colors.inputBg,
+        backgroundColor: c.inputBg,
         marginLeft: spacing.lg + 36 + spacing.md,
     },
     logoutButton: {
@@ -510,8 +560,8 @@ const styles = StyleSheet.create({
     versionText: {
         fontFamily: typography.fontFamily.regular,
         fontSize: typography.sizes.sm,
-        color: colors.textLight,
+        color: c.textLight,
         textAlign: 'center',
         marginTop: spacing.lg,
     },
-});
+}));
