@@ -1,9 +1,20 @@
-import { Platform, NativeEventEmitter, NativeModules } from 'react-native';
+import { NativeEventEmitter, NativeModules, Platform } from 'react-native';
 import { store } from '../store';
-import { setDetectedTransaction, setPermissionStatus } from '../store/slices/smsSlice';
-import { parseSms, isBankMessage, generateTransactionHash, isDuplicate, recordHash } from './sms';
+import { addExpense } from '../store/slices/expenseSlice';
+import { addNotification } from '../store/slices/notificationSlice';
+import {
+    recordAutoAdded,
+    setDetectedTransaction,
+    setPermissionStatus,
+} from '../store/slices/smsSlice';
+import { formatCurrency } from '../utils/formatters';
+import { newId } from '../utils/id';
+import { checkBudgets } from './budgetAlerts';
 import { detectCategory } from './categoryDetector';
+import { loadPrefs, notify } from './notifications';
+import { generateTransactionHash, isBankMessage, isDuplicate, parseSms, recordHash } from './sms';
 import { checkSmsPermission } from './smsPermission';
+import { syncEngine } from './syncEngine';
 
 type SmsReceivedEvent = {
     messageBody: string;
@@ -58,19 +69,103 @@ async function handleIncomingSms(event: SmsReceivedEvent): Promise<void> {
     lastProcessedTime = now;
 
     const category = detectCategory(transaction.merchant || '');
+    const merchant = transaction.merchant || '';
+    const type = transaction.type || 'expense';
+    const date = (transaction.date || new Date()).toISOString();
+
+    const { autoAddEnabled, autoAddThreshold } = store.getState().sms;
+
+    // Above the auto-add bar the transaction is logged straight away and the
+    // user is told after the fact, with an undo. Below it, they confirm first.
+    if (
+        autoAddEnabled &&
+        confidenceLevel === 'high' &&
+        transaction.confidence >= autoAddThreshold
+    ) {
+        await autoAddTransaction({
+            amount: transaction.amount,
+            merchant,
+            type,
+            date,
+            category,
+        });
+        return;
+    }
 
     store.dispatch(
         setDetectedTransaction({
             amount: transaction.amount,
-            merchant: transaction.merchant || '',
-            type: transaction.type || 'expense',
-            date: (transaction.date || new Date()).toISOString(),
+            merchant,
+            type,
+            date,
             category,
             accountLastFour: transaction.accountLast4 || undefined,
             confidence: transaction.confidence,
             confidenceLevel,
         })
     );
+}
+
+/** Log a high-confidence transaction without asking, then notify with an undo. */
+async function autoAddTransaction(input: {
+    amount: number;
+    merchant: string;
+    type: 'expense' | 'income';
+    date: string;
+    category: string;
+}): Promise<void> {
+    const localId = newId();
+
+    store.dispatch(
+        addExpense({
+            localId,
+            amount: input.amount,
+            type: input.type,
+            category: input.category,
+            description: input.merchant
+                ? `Auto-logged: ${input.merchant}`
+                : 'Auto-logged from SMS',
+            paymentMethod: 'bank_transfer',
+            date: input.date,
+            isRecurring: false,
+        })
+    );
+
+    store.dispatch(
+        recordAutoAdded({
+            localId,
+            amount: input.amount,
+            merchant: input.merchant,
+            category: input.category,
+            at: new Date().toISOString(),
+        })
+    );
+
+    const currency = store.getState().auth.user?.currency ?? 'INR';
+    const where = input.merchant ? ` at ${input.merchant}` : '';
+    const title = 'Transaction logged';
+    const message = `${formatCurrency(input.amount, currency)}${where} was added automatically.`;
+
+    store.dispatch(
+        addNotification({
+            id: newId(),
+            title,
+            message,
+            createdAt: new Date().toISOString(),
+            read: false,
+            kind: 'auto-added',
+        })
+    );
+
+    const prefs = await loadPrefs();
+    if (prefs.notifyOnAutoAdd) {
+        await notify(title, message);
+    }
+
+    // A new expense can push a budget over its threshold.
+    await checkBudgets(currency);
+
+    syncEngine.syncPending();
 }
 
 function debouncedHandler(event: SmsReceivedEvent): void {

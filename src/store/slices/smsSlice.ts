@@ -1,4 +1,3 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 export interface DetectedTransaction {
@@ -12,12 +11,26 @@ export interface DetectedTransaction {
     confidenceLevel?: 'high' | 'low' | 'ignore';
 }
 
+/** A transaction logged without confirmation, retained briefly so it can be undone. */
+export interface AutoAddedRecord {
+    localId: string;
+    amount: number;
+    merchant: string;
+    category: string;
+    at: string;
+}
+
 export interface SmsState {
     isEnabled: boolean;
     permissionStatus: 'granted' | 'denied' | 'never_ask_again' | 'unavailable' | 'unknown';
     lastDetectedTransaction: DetectedTransaction | null;
     showConfirmation: boolean;
     detectionCount: number;
+    /** Skip the confirmation sheet when confidence clears `autoAddThreshold`. */
+    autoAddEnabled: boolean;
+    autoAddThreshold: number;
+    lastAutoAdded: AutoAddedRecord | null;
+    autoAddCount: number;
 }
 
 const initialState: SmsState = {
@@ -26,10 +39,12 @@ const initialState: SmsState = {
     lastDetectedTransaction: null,
     showConfirmation: false,
     detectionCount: 0,
-};
-
-const persistSmsSettings = async (isEnabled: boolean) => {
-    await AsyncStorage.setItem('smsDetectionEnabled', JSON.stringify(isEnabled));
+    autoAddEnabled: false,
+    // Deliberately stricter than the 0.75 that merely opens the sheet: logging
+    // without asking should require near-certainty.
+    autoAddThreshold: 0.9,
+    lastAutoAdded: null,
+    autoAddCount: 0,
 };
 
 const smsSlice = createSlice({
@@ -38,13 +53,13 @@ const smsSlice = createSlice({
     reducers: {
         enableSmsDetection: (state) => {
             state.isEnabled = true;
-            persistSmsSettings(true);
         },
         disableSmsDetection: (state) => {
             state.isEnabled = false;
             state.lastDetectedTransaction = null;
             state.showConfirmation = false;
-            persistSmsSettings(false);
+            // Auto-add cannot outlive detection being switched off.
+            state.autoAddEnabled = false;
         },
         setPermissionStatus: (
             state,
@@ -64,11 +79,35 @@ const smsSlice = createSlice({
             state.lastDetectedTransaction = null;
             state.showConfirmation = false;
         },
+        setAutoAddEnabled: (state, action: PayloadAction<boolean>) => {
+            state.autoAddEnabled = action.payload;
+        },
+        setAutoAddThreshold: (state, action: PayloadAction<number>) => {
+            state.autoAddThreshold = Math.min(1, Math.max(0.5, action.payload));
+        },
+        recordAutoAdded: (state, action: PayloadAction<AutoAddedRecord>) => {
+            state.lastAutoAdded = action.payload;
+            state.detectionCount += 1;
+            state.autoAddCount += 1;
+        },
+        clearAutoAdded: (state) => {
+            state.lastAutoAdded = null;
+        },
         hydrateSmsSettings: (
             state,
-            action: PayloadAction<{ isEnabled: boolean }>
+            action: PayloadAction<{
+                isEnabled: boolean;
+                autoAddEnabled?: boolean;
+                autoAddThreshold?: number;
+            }>
         ) => {
             state.isEnabled = action.payload.isEnabled;
+            if (typeof action.payload.autoAddEnabled === 'boolean') {
+                state.autoAddEnabled = action.payload.autoAddEnabled;
+            }
+            if (typeof action.payload.autoAddThreshold === 'number') {
+                state.autoAddThreshold = action.payload.autoAddThreshold;
+            }
         },
     },
 });
@@ -79,6 +118,10 @@ export const {
     setPermissionStatus,
     setDetectedTransaction,
     clearDetectedTransaction,
+    setAutoAddEnabled,
+    setAutoAddThreshold,
+    recordAutoAdded,
+    clearAutoAdded,
     hydrateSmsSettings,
 } = smsSlice.actions;
 

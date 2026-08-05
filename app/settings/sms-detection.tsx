@@ -5,7 +5,6 @@ import {
     Linking,
     Platform,
     ScrollView,
-    StyleSheet,
     Switch,
     Text,
     TouchableOpacity,
@@ -19,9 +18,11 @@ import { useAppSelector } from '../../src/store/hooks';
 import {
     disableSmsDetection,
     enableSmsDetection,
+    setAutoAddEnabled,
+    setAutoAddThreshold,
     setPermissionStatus,
 } from '../../src/store/slices/smsSlice';
-import { borderRadius, colors, spacing, typography } from '../../src/theme';
+import { borderRadius, makeStyles, spacing, typography, useTheme } from '../../src/theme';
 import {
     checkSmsPermission,
     requestReceiveSmsPermission,
@@ -31,10 +32,19 @@ import {
 import { initSmsListener, stopSmsListener } from '../../src/services/smsListener';
 
 export default function SmsDetectionSettings() {
+    const styles = useStyles();
+    const { colors } = useTheme();
     const router = useRouter();
     const dispatch = useDispatch();
     const insets = useSafeAreaInsets();
-    const { isEnabled, permissionStatus, detectionCount } = useAppSelector((s) => s.sms);
+    const {
+        isEnabled,
+        permissionStatus,
+        detectionCount,
+        autoAddEnabled,
+        autoAddThreshold,
+        autoAddCount,
+    } = useAppSelector((s) => s.sms);
 
     useEffect(() => {
         checkSmsPermission().then((status) => {
@@ -149,6 +159,71 @@ export default function SmsDetectionSettings() {
                     </View>
                 </Card>
 
+                {/* Auto-add */}
+                <Card style={styles.toggleCard}>
+                    <View style={styles.toggleRow}>
+                        <View style={styles.toggleLeft}>
+                            <View style={[styles.iconBox, { backgroundColor: colors.successBg }]}>
+                                <Ionicons name="flash" size={22} color={colors.success} />
+                            </View>
+                            <View style={styles.toggleTextContainer}>
+                                <Text style={styles.toggleTitle}>Log without asking</Text>
+                                <Text style={styles.toggleDesc}>
+                                    Skip the confirmation sheet when a message is
+                                    unambiguous. You can always undo.
+                                </Text>
+                            </View>
+                        </View>
+                        <Switch
+                            value={autoAddEnabled}
+                            onValueChange={(v) => {
+                                dispatch(setAutoAddEnabled(v));
+                            }}
+                            disabled={!isEnabled}
+                            trackColor={{ false: colors.inputBg, true: colors.primary + '60' }}
+                            thumbColor={autoAddEnabled ? colors.primary : '#f4f3f4'}
+                        />
+                    </View>
+
+                    {autoAddEnabled && (
+                        <View style={styles.thresholdBlock}>
+                            <Text style={styles.thresholdLabel}>
+                                Required confidence: {Math.round(autoAddThreshold * 100)}%
+                            </Text>
+                            <View style={styles.thresholdRow}>
+                                {[0.8, 0.9, 0.95].map((value) => {
+                                    const active = Math.abs(autoAddThreshold - value) < 0.001;
+                                    return (
+                                        <TouchableOpacity
+                                            key={value}
+                                            style={[
+                                                styles.thresholdChip,
+                                                active && { backgroundColor: colors.primary },
+                                            ]}
+                                            onPress={() => dispatch(setAutoAddThreshold(value))}
+                                            accessibilityRole="radio"
+                                            accessibilityState={{ selected: active }}
+                                        >
+                                            <Text
+                                                style={[
+                                                    styles.thresholdChipText,
+                                                    active && { color: colors.textWhite },
+                                                ]}
+                                            >
+                                                {Math.round(value * 100)}%
+                                            </Text>
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </View>
+                            <Text style={styles.thresholdHint}>
+                                Anything below this still asks you first.
+                                {autoAddCount > 0 ? ` ${autoAddCount} logged so far.` : ''}
+                            </Text>
+                        </View>
+                    )}
+                </Card>
+
                 {/* Status */}
                 <Card style={styles.statusCard}>
                     <View style={styles.statusRow}>
@@ -258,7 +333,7 @@ export default function SmsDetectionSettings() {
                         PhonePe, GPay, and Razorpay are also supported.
                     </Text>
                     <Text style={[styles.supportedDesc, { marginTop: spacing.sm, color: colors.textLight }]}>
-                        If your bank's SMS format isn't detected, the feature can be extended
+                        If your bank&apos;s SMS format isn&apos;t detected, the feature can be extended
                         with additional patterns in future updates.
                     </Text>
                 </Card>
@@ -269,10 +344,10 @@ export default function SmsDetectionSettings() {
     );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c, isDark) => ({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
+        backgroundColor: c.background,
     },
     header: {
         flexDirection: 'row',
@@ -286,7 +361,7 @@ const styles = StyleSheet.create({
     title: {
         fontFamily: typography.fontFamily.bold,
         fontSize: typography.sizes.xxl,
-        color: colors.textMain,
+        color: c.textMain,
     },
     scrollContent: {
         paddingHorizontal: spacing.xl,
@@ -320,13 +395,47 @@ const styles = StyleSheet.create({
     toggleTitle: {
         fontFamily: typography.fontFamily.semiBold,
         fontSize: typography.sizes.md,
-        color: colors.textMain,
+        color: c.textMain,
     },
     toggleDesc: {
         fontFamily: typography.fontFamily.regular,
         fontSize: typography.sizes.sm,
-        color: colors.textSecondary,
+        color: c.textSecondary,
         marginTop: 2,
+    },
+    thresholdBlock: {
+        marginTop: spacing.lg,
+        paddingTop: spacing.lg,
+        borderTopWidth: 1,
+        borderTopColor: c.border,
+    },
+    thresholdLabel: {
+        fontFamily: typography.fontFamily.medium,
+        fontSize: typography.sizes.sm,
+        color: c.textMain,
+        marginBottom: spacing.sm,
+    },
+    thresholdRow: {
+        flexDirection: 'row',
+        gap: spacing.sm,
+    },
+    thresholdChip: {
+        flex: 1,
+        paddingVertical: spacing.sm,
+        alignItems: 'center',
+        backgroundColor: c.inputBg,
+        borderRadius: borderRadius.md,
+    },
+    thresholdChipText: {
+        fontFamily: typography.fontFamily.medium,
+        fontSize: typography.sizes.sm,
+        color: c.textSecondary,
+    },
+    thresholdHint: {
+        fontFamily: typography.fontFamily.regular,
+        fontSize: typography.sizes.xs,
+        color: c.textSecondary,
+        marginTop: spacing.sm,
     },
     statusCard: {
         marginBottom: spacing.xl,
@@ -340,7 +449,7 @@ const styles = StyleSheet.create({
     statusLabel: {
         fontFamily: typography.fontFamily.regular,
         fontSize: typography.sizes.md,
-        color: colors.textSecondary,
+        color: c.textSecondary,
     },
     statusBadge: {
         flexDirection: 'row',
@@ -362,11 +471,11 @@ const styles = StyleSheet.create({
     statusValue: {
         fontFamily: typography.fontFamily.semiBold,
         fontSize: typography.sizes.md,
-        color: colors.textMain,
+        color: c.textMain,
     },
     divider: {
         height: 1,
-        backgroundColor: colors.inputBg,
+        backgroundColor: c.inputBg,
         marginVertical: spacing.xs,
     },
     openSettingsBtn: {
@@ -379,12 +488,12 @@ const styles = StyleSheet.create({
     openSettingsText: {
         fontFamily: typography.fontFamily.medium,
         fontSize: typography.sizes.sm,
-        color: colors.primary,
+        color: c.primary,
     },
     sectionTitle: {
         fontFamily: typography.fontFamily.semiBold,
         fontSize: typography.sizes.lg,
-        color: colors.textMain,
+        color: c.textMain,
         marginBottom: spacing.md,
     },
     infoCard: {
@@ -395,14 +504,14 @@ const styles = StyleSheet.create({
         alignItems: 'flex-start',
         paddingBottom: spacing.lg,
         borderBottomWidth: 1,
-        borderBottomColor: colors.inputBg,
+        borderBottomColor: c.inputBg,
         marginBottom: spacing.lg,
     },
     stepIcon: {
         width: 36,
         height: 36,
         borderRadius: 18,
-        backgroundColor: colors.primary + '15',
+        backgroundColor: c.primary + '15',
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: spacing.md,
@@ -413,12 +522,12 @@ const styles = StyleSheet.create({
     stepTitle: {
         fontFamily: typography.fontFamily.semiBold,
         fontSize: typography.sizes.md,
-        color: colors.textMain,
+        color: c.textMain,
     },
     stepDesc: {
         fontFamily: typography.fontFamily.regular,
         fontSize: typography.sizes.sm,
-        color: colors.textSecondary,
+        color: c.textSecondary,
         marginTop: 2,
     },
     privacyCard: {
@@ -433,7 +542,7 @@ const styles = StyleSheet.create({
     privacyHeaderText: {
         fontFamily: typography.fontFamily.semiBold,
         fontSize: typography.sizes.md,
-        color: colors.textMain,
+        color: c.textMain,
     },
     privacyRow: {
         flexDirection: 'row',
@@ -444,13 +553,13 @@ const styles = StyleSheet.create({
     privacyText: {
         fontFamily: typography.fontFamily.regular,
         fontSize: typography.sizes.sm,
-        color: colors.textSecondary,
+        color: c.textSecondary,
         flex: 1,
     },
     supportedDesc: {
         fontFamily: typography.fontFamily.regular,
         fontSize: typography.sizes.sm,
-        color: colors.textSecondary,
+        color: c.textSecondary,
         lineHeight: 20,
     },
     unavailable: {
@@ -462,15 +571,15 @@ const styles = StyleSheet.create({
     unavailableTitle: {
         fontFamily: typography.fontFamily.semiBold,
         fontSize: typography.sizes.xl,
-        color: colors.textMain,
+        color: c.textMain,
         marginTop: spacing.lg,
     },
     unavailableDesc: {
         fontFamily: typography.fontFamily.regular,
         fontSize: typography.sizes.md,
-        color: colors.textSecondary,
+        color: c.textSecondary,
         textAlign: 'center',
         marginTop: spacing.sm,
         lineHeight: 22,
     },
-});
+}));
