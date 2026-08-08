@@ -1,12 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
     Alert,
+    Image,
     Platform,
     ScrollView,
-    StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
@@ -19,31 +19,41 @@ import { Button } from '../../src/components/common/Button';
 import { Card } from '../../src/components/common/Card';
 import { AmountInput } from '../../src/components/expense/AmountInput';
 import { CategoryGrid } from '../../src/components/expense/CategoryGrid';
+import { checkBudgets } from '../../src/services/budgetAlerts';
 import { syncEngine } from '../../src/services/syncEngine';
 import { useAppSelector } from '../../src/store/hooks';
 import { addExpense } from '../../src/store/slices/expenseSlice';
-import {
-    borderRadius,
-    categories,
-    colors,
-    paymentMethods,
-    spacing,
-    typography
-} from '../../src/theme';
+import { borderRadius, categoryTint, makeStyles, paymentMethods, spacing, typography, useTheme } from '../../src/theme';
 import { formatDate } from '../../src/utils/formatters';
 
 export default function AddExpenseScreen() {
+    const styles = useStyles();
+    const { colors, isDark } = useTheme();
     const router = useRouter();
     const dispatch = useDispatch();
     const insets = useSafeAreaInsets();
     const { user } = useAppSelector((state) => state.auth);
 
-    const [amount, setAmount] = useState('');
+    // Pre-filled by the receipt scanner. Every param arrives as a string.
+    const params = useLocalSearchParams<{
+        amount?: string;
+        description?: string;
+        date?: string;
+        receiptUri?: string;
+        ocrConfidence?: string;
+    }>();
+
+    const [amount, setAmount] = useState(params.amount ?? '');
     const [type, setType] = useState<'expense' | 'income'>('expense');
     const [category, setCategory] = useState('food');
-    const [description, setDescription] = useState('');
+    const [description, setDescription] = useState(params.description ?? '');
     const [paymentMethod, setPaymentMethod] = useState('upi');
-    const [date, setDate] = useState(new Date());
+    const [receiptUri, setReceiptUri] = useState<string | null>(params.receiptUri ?? null);
+    const [date, setDate] = useState(() => {
+        if (!params.date) return new Date();
+        const parsed = new Date(params.date);
+        return isNaN(parsed.getTime()) ? new Date() : parsed;
+    });
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isRecurring, setIsRecurring] = useState(false);
@@ -65,7 +75,7 @@ export default function AddExpenseScreen() {
         setIsSubmitting(true);
 
         // Generate category label as description if empty
-        const desc = description.trim() || categories[category as keyof typeof categories]?.label || '';
+        const desc = description.trim() || categoryTint(category, isDark).label;
 
         dispatch(
             addExpense({
@@ -77,20 +87,14 @@ export default function AddExpenseScreen() {
                 date: date.toISOString(),
                 isRecurring,
                 frequency: isRecurring ? frequency : null,
+                receiptUri,
             })
         );
 
-        // Check budget alert
-        if (type === 'expense' && user?.budgetLimit) {
-            const { totalExpense } = (await import('../../src/store')).store.getState().expenses;
-            if (totalExpense + amountValue > user.budgetLimit) {
-                Alert.alert(
-                    '⚠️ Budget Alert',
-                    `This expense will put you over your monthly budget of ₹${user.budgetLimit}!`,
-                    [{ text: 'OK' }]
-                );
-            }
-        }
+        // Budget thresholds are evaluated centrally so the in-app feed and the
+        // system notification stay in step. Totals already include this expense,
+        // so nothing is added to them here.
+        await checkBudgets(user?.currency ?? 'INR');
 
         // Trigger sync
         syncEngine.syncPending();
@@ -168,6 +172,46 @@ export default function AddExpenseScreen() {
                     onChangeText={setAmount}
                     currency="₹"
                 />
+
+                {/* Receipt */}
+                {receiptUri ? (
+                    <View style={styles.receiptRow}>
+                        <Image source={{ uri: receiptUri }} style={styles.receiptThumb} />
+                        <View style={styles.receiptText}>
+                            <Text style={styles.receiptTitle}>Receipt attached</Text>
+                            {params.ocrConfidence ? (
+                                <Text style={styles.receiptHint}>
+                                    {Number(params.ocrConfidence) >= 0.6
+                                        ? 'Fields filled from the photo — check them below.'
+                                        : 'Could not read it clearly. Please enter the amount.'}
+                                </Text>
+                            ) : (
+                                <Text style={styles.receiptHint}>
+                                    Saved with this transaction.
+                                </Text>
+                            )}
+                        </View>
+                        <TouchableOpacity
+                            onPress={() => setReceiptUri(null)}
+                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            accessibilityRole="button"
+                            accessibilityLabel="Remove receipt"
+                        >
+                            <Ionicons name="close-circle" size={22} color={colors.textSecondary} />
+                        </TouchableOpacity>
+                    </View>
+                ) : (
+                    <TouchableOpacity
+                        style={styles.scanButton}
+                        onPress={() => router.push('/expense/scan')}
+                        activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityLabel="Scan a receipt"
+                    >
+                        <Ionicons name="camera-outline" size={20} color={colors.primary} />
+                        <Text style={styles.scanButtonText}>Scan a receipt</Text>
+                    </TouchableOpacity>
+                )}
 
                 {/* Category Selection */}
                 <View style={styles.section}>
@@ -306,10 +350,10 @@ export default function AddExpenseScreen() {
     );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c, isDark) => ({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
+        backgroundColor: c.background,
     },
     header: {
         flexDirection: 'row',
@@ -318,7 +362,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: spacing.lg,
         paddingVertical: spacing.md,
         borderBottomWidth: 1,
-        borderBottomColor: colors.inputBg,
+        borderBottomColor: c.inputBg,
     },
     backButton: {
         width: 40,
@@ -329,7 +373,7 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontFamily: typography.fontFamily.semiBold,
         fontSize: typography.sizes.lg,
-        color: colors.textMain,
+        color: c.textMain,
     },
     scrollView: {
         flex: 1,
@@ -340,7 +384,7 @@ const styles = StyleSheet.create({
     },
     typeToggle: {
         flexDirection: 'row',
-        backgroundColor: colors.inputBg,
+        backgroundColor: c.inputBg,
         borderRadius: borderRadius.full,
         padding: 4,
         marginTop: spacing.lg,
@@ -352,45 +396,89 @@ const styles = StyleSheet.create({
         borderRadius: borderRadius.full,
     },
     typeButtonActiveExpense: {
-        backgroundColor: colors.error,
+        backgroundColor: c.error,
     },
     typeButtonActiveIncome: {
-        backgroundColor: colors.success,
+        backgroundColor: c.success,
     },
     typeButtonText: {
         fontFamily: typography.fontFamily.medium,
         fontSize: typography.sizes.md,
-        color: colors.textSecondary,
+        color: c.textSecondary,
     },
     typeButtonTextActive: {
-        color: colors.textWhite,
+        color: c.textWhite,
     },
     section: {
         marginTop: spacing.xl,
     },
+    scanButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: spacing.sm,
+        paddingVertical: spacing.md,
+        borderRadius: borderRadius.lg,
+        borderWidth: 1,
+        borderStyle: 'dashed',
+        borderColor: c.primary,
+    },
+    scanButtonText: {
+        fontFamily: typography.fontFamily.medium,
+        fontSize: typography.sizes.md,
+        color: c.primary,
+    },
+    receiptRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.md,
+        backgroundColor: c.inputBg,
+        borderRadius: borderRadius.lg,
+        padding: spacing.md,
+    },
+    receiptThumb: {
+        width: 44,
+        height: 56,
+        borderRadius: borderRadius.xs,
+        backgroundColor: c.border,
+    },
+    receiptText: {
+        flex: 1,
+    },
+    receiptTitle: {
+        fontFamily: typography.fontFamily.medium,
+        fontSize: typography.sizes.md,
+        color: c.textMain,
+    },
+    receiptHint: {
+        fontFamily: typography.fontFamily.regular,
+        fontSize: typography.sizes.sm,
+        color: c.textSecondary,
+        marginTop: 2,
+    },
     sectionTitle: {
         fontFamily: typography.fontFamily.semiBold,
         fontSize: typography.sizes.lg,
-        color: colors.textMain,
+        color: c.textMain,
         marginBottom: spacing.md,
     },
     categoryCard: {
         paddingVertical: spacing.md,
     },
     descriptionInput: {
-        backgroundColor: colors.inputBg,
+        backgroundColor: c.inputBg,
         borderRadius: borderRadius.lg,
         padding: spacing.lg,
         fontFamily: typography.fontFamily.regular,
         fontSize: typography.sizes.md,
-        color: colors.textMain,
+        color: c.textMain,
         minHeight: 80,
         textAlignVertical: 'top',
     },
     dateButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.inputBg,
+        backgroundColor: c.inputBg,
         borderRadius: borderRadius.lg,
         padding: spacing.lg,
         gap: spacing.md,
@@ -399,7 +487,7 @@ const styles = StyleSheet.create({
         flex: 1,
         fontFamily: typography.fontFamily.medium,
         fontSize: typography.sizes.md,
-        color: colors.textMain,
+        color: c.textMain,
     },
     paymentMethods: {
         flexDirection: 'row',
@@ -409,14 +497,14 @@ const styles = StyleSheet.create({
     paymentButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.inputBg,
+        backgroundColor: c.inputBg,
         borderRadius: borderRadius.full,
         paddingVertical: spacing.sm,
         paddingHorizontal: spacing.md,
         gap: spacing.xs,
     },
     paymentButtonActive: {
-        backgroundColor: colors.primary,
+        backgroundColor: c.primary,
     },
     paymentIcon: {
         fontSize: 16,
@@ -424,16 +512,16 @@ const styles = StyleSheet.create({
     paymentText: {
         fontFamily: typography.fontFamily.medium,
         fontSize: typography.sizes.sm,
-        color: colors.textSecondary,
+        color: c.textSecondary,
     },
     paymentTextActive: {
-        color: colors.textWhite,
+        color: c.textWhite,
     },
     recurringToggle: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        backgroundColor: colors.inputBg,
+        backgroundColor: c.inputBg,
         borderRadius: borderRadius.lg,
         padding: spacing.lg,
     },
@@ -445,24 +533,24 @@ const styles = StyleSheet.create({
     recurringText: {
         fontFamily: typography.fontFamily.medium,
         fontSize: typography.sizes.md,
-        color: colors.textSecondary,
+        color: c.textSecondary,
     },
     toggle: {
         width: 48,
         height: 28,
         borderRadius: 14,
-        backgroundColor: colors.textLight,
+        backgroundColor: c.textLight,
         padding: 2,
         justifyContent: 'center',
     },
     toggleActive: {
-        backgroundColor: colors.primary,
+        backgroundColor: c.primary,
     },
     toggleThumb: {
         width: 24,
         height: 24,
         borderRadius: 12,
-        backgroundColor: colors.cardBg,
+        backgroundColor: c.cardBg,
     },
     toggleThumbActive: {
         alignSelf: 'flex-end',
@@ -476,21 +564,21 @@ const styles = StyleSheet.create({
         flex: 1,
         paddingVertical: spacing.md,
         alignItems: 'center',
-        backgroundColor: colors.inputBg,
+        backgroundColor: c.inputBg,
         borderRadius: borderRadius.lg,
     },
     frequencyButtonActive: {
-        backgroundColor: colors.primary,
+        backgroundColor: c.primary,
     },
     frequencyText: {
         fontFamily: typography.fontFamily.medium,
         fontSize: typography.sizes.sm,
-        color: colors.textSecondary,
+        color: c.textSecondary,
     },
     frequencyTextActive: {
-        color: colors.textWhite,
+        color: c.textWhite,
     },
     submitButton: {
         marginTop: spacing.xxl,
     },
-});
+}));
