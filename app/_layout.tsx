@@ -9,23 +9,38 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, AppState, Platform, StyleSheet, View } from 'react-native';
 import { Provider, useDispatch } from 'react-redux';
 
-import { syncEngine } from '../src/services/syncEngine';
-import { initSmsListener, stopSmsListener } from '../src/services/smsListener';
+import AutoAddToast from '../src/components/sms/AutoAddToast';
 import SmsTransactionModal from '../src/components/sms/SmsTransactionModal';
+import { checkBudgets } from '../src/services/budgetAlerts';
+import { initSmsListener, stopSmsListener } from '../src/services/smsListener';
+import { syncEngine } from '../src/services/syncEngine';
 import { store } from '../src/store';
 import { useAppSelector } from '../src/store/hooks';
+import { flushPersistence } from '../src/store/persistMiddleware';
 import { hydrateAuth } from '../src/store/slices/authSlice';
 import { hydrateExpenses } from '../src/store/slices/expenseSlice';
+import { hydrateNotifications } from '../src/store/slices/notificationSlice';
 import { hydrateSmsSettings } from '../src/store/slices/smsSlice';
-import { colors } from '../src/theme';
+import { ThemeProvider, useTheme } from '../src/theme';
+
+/** Full-screen spinner used while fonts and persisted state load. */
+function LoadingScreen() {
+  const { colors } = useTheme();
+  return (
+    <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+      <ActivityIndicator size="large" color={colors.primary} />
+    </View>
+  );
+}
 
 function RootLayoutNav() {
   const router = useRouter();
   const segments = useSegments();
   const dispatch = useDispatch();
+  const { isDark } = useTheme();
   const { isAuthenticated, isLoading } = useAppSelector(
     (state) => state.auth
   );
@@ -45,19 +60,42 @@ function RootLayoutNav() {
           dispatch(hydrateAuth(null));
         }
 
-        // Hydrate expenses
-        const expensesJson = await AsyncStorage.getItem('expenses');
-        const pendingQueueJson = await AsyncStorage.getItem('pendingQueue');
+        // Hydrate expenses, the pending upload queue, and unsent deletes
+        const [
+            expensesJson,
+            pendingQueueJson,
+            tombstonesJson,
+            notificationsJson,
+        ] = await Promise.all([
+          AsyncStorage.getItem('expenses'),
+          AsyncStorage.getItem('pendingQueue'),
+          AsyncStorage.getItem('tombstones'),
+          AsyncStorage.getItem('notifications'),
+        ]);
 
-        const expenses = expensesJson ? JSON.parse(expensesJson) : [];
-        const pendingQueue = pendingQueueJson ? JSON.parse(pendingQueueJson) : [];
+        dispatch(
+          hydrateExpenses({
+            items: expensesJson ? JSON.parse(expensesJson) : [],
+            pendingQueue: pendingQueueJson ? JSON.parse(pendingQueueJson) : [],
+            tombstones: tombstonesJson ? JSON.parse(tombstonesJson) : [],
+          })
+        );
 
-        dispatch(hydrateExpenses({ items: expenses, pendingQueue }));
+        if (notificationsJson) {
+          dispatch(hydrateNotifications(JSON.parse(notificationsJson)));
+        }
 
-        // Hydrate SMS detection preference (Android only)
+        // Hydrate SMS detection preferences (Android only)
         if (Platform.OS === 'android') {
-          const smsEnabled = await AsyncStorage.getItem('smsDetectionEnabled');
-          dispatch(hydrateSmsSettings({ isEnabled: smsEnabled === 'true' }));
+          const settingsJson = await AsyncStorage.getItem('smsSettings');
+
+          if (settingsJson) {
+            dispatch(hydrateSmsSettings(JSON.parse(settingsJson)));
+          } else {
+            // Fall back to the pre-auto-add storage key.
+            const legacy = await AsyncStorage.getItem('smsDetectionEnabled');
+            dispatch(hydrateSmsSettings({ isEnabled: legacy === 'true' }));
+          }
         }
       } catch (error) {
         console.error('Hydration error:', error);
@@ -75,6 +113,24 @@ function RootLayoutNav() {
     syncEngine.init();
     return () => syncEngine.cleanup();
   }, []);
+
+  // Persistence is debounced, so force a flush before the app is backgrounded
+  // rather than risk losing the last few hundred milliseconds of edits.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next === 'background' || next === 'inactive') {
+        flushPersistence();
+      }
+    });
+    return () => sub.remove();
+  }, []);
+
+  // Re-evaluate budgets once state is loaded, so an alert crossed while the app
+  // was closed still surfaces on next launch.
+  useEffect(() => {
+    if (isHydrating || !isAuthenticated) return;
+    checkBudgets(store.getState().auth.user?.currency ?? 'INR');
+  }, [isHydrating, isAuthenticated]);
 
   // Initialize SMS listener (Android only)
   useEffect(() => {
@@ -100,56 +156,33 @@ function RootLayoutNav() {
   }, [isAuthenticated, segments, isHydrating, isLoading]);
 
   if (isHydrating || isLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
+    return <LoadingScreen />;
   }
+
+  const modal = { presentation: 'modal', headerShown: false } as const;
 
   return (
     <>
-      <StatusBar style="dark" />
+      <StatusBar style={isDark ? 'light' : 'dark'} />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen
-          name="expense/add"
-          options={{
-            presentation: 'modal',
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name="expense/[id]"
-          options={{
-            presentation: 'modal',
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name="budgets"
-          options={{
-            presentation: 'modal',
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name="insights"
-          options={{
-            presentation: 'modal',
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name="settings/sms-detection"
-          options={{
-            presentation: 'modal',
-            headerShown: false,
-          }}
-        />
+        <Stack.Screen name="expense/add" options={modal} />
+        <Stack.Screen name="expense/[id]" options={modal} />
+        <Stack.Screen name="expense/scan" options={{ headerShown: false }} />
+        <Stack.Screen name="budgets" options={modal} />
+        <Stack.Screen name="insights" options={modal} />
+        <Stack.Screen name="export" options={modal} />
+        <Stack.Screen name="settings/sms-detection" options={modal} />
+        <Stack.Screen name="settings/appearance" options={modal} />
+        <Stack.Screen name="settings/notifications" options={modal} />
       </Stack>
-      {Platform.OS === 'android' && <SmsTransactionModal />}
+      {Platform.OS === 'android' && (
+        <>
+          <SmsTransactionModal />
+          <AutoAddToast />
+        </>
+      )}
     </>
   );
 }
@@ -162,17 +195,11 @@ export default function RootLayout() {
     Poppins_700Bold,
   });
 
-  if (!fontsLoaded) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
-  }
-
   return (
     <Provider store={store}>
-      <RootLayoutNav />
+      <ThemeProvider>
+        {fontsLoaded ? <RootLayoutNav /> : <LoadingScreen />}
+      </ThemeProvider>
     </Provider>
   );
 }
@@ -182,6 +209,5 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.background,
   },
 });
