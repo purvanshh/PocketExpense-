@@ -5,7 +5,7 @@ import axios from 'axios';
 // you need to use your computer's actual IP address
 // Find your IP: run `ifconfig` or check System Preferences > Network
 
-const YOUR_IP = '10.230.199.207';
+const YOUR_IP = '192.168.0.102';
 const PORT = '5001';
 
 const BASE_URL = `http://${YOUR_IP}:${PORT}/api`;
