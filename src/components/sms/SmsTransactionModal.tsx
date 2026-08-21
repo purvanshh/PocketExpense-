@@ -41,10 +41,26 @@ export default function SmsTransactionModal() {
 
     useEffect(() => {
         if (showConfirmation && lastDetectedTransaction) {
-            setEditAmount(String(lastDetectedTransaction.amount));
-            setEditMerchant(lastDetectedTransaction.merchant);
-            setEditCategory(lastDetectedTransaction.category || 'other');
-            setEditType(lastDetectedTransaction.type);
+            // Guarded setters: re-running this effect with the same transaction
+            // must not schedule new renders, otherwise a re-render that changes
+            // `lastDetectedTransaction` identity can spiral into
+            // "Maximum update depth exceeded".
+            setEditAmount((prev) => {
+                const next = String(lastDetectedTransaction.amount);
+                return next === prev ? prev : next;
+            });
+            setEditMerchant((prev) => {
+                const next = lastDetectedTransaction.merchant ?? '';
+                return next === prev ? prev : next;
+            });
+            setEditCategory((prev) => {
+                const next = lastDetectedTransaction.category || 'other';
+                return next === prev ? prev : next;
+            });
+            setEditType((prev) => {
+                const next = lastDetectedTransaction.type;
+                return next === prev ? prev : next;
+            });
 
             Animated.parallel([
                 Animated.spring(scaleAnim, {

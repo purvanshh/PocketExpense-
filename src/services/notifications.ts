@@ -1,8 +1,40 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Notifications from 'expo-notifications';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { Platform } from 'react-native';
 
 export const NOTIFICATION_PREFS_KEY = 'notificationPrefs';
+
+type NotificationsModule = typeof import('expo-notifications');
+
+// expo-notifications dropped remote notification support in Expo Go (SDK 53+).
+// Loading it there calls console.error during module evaluation, so the whole
+// module must be skipped — not just caught — when running in Expo Go. Every call
+// then degrades to a no-op.
+const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+
+let Notifications: NotificationsModule | null = null;
+
+if (!isExpoGo) {
+    try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const notif = require('expo-notifications') as NotificationsModule;
+
+        // Foreground presentation. Without this a notification fired while the
+        // app is open is swallowed silently.
+        notif.setNotificationHandler({
+            handleNotification: async () => ({
+                shouldShowBanner: true,
+                shouldShowList: true,
+                shouldPlaySound: false,
+                shouldSetBadge: false,
+            }),
+        });
+
+        Notifications = notif;
+    } catch {
+        Notifications = null;
+    }
+}
 
 export interface NotificationPrefs {
     /** Master switch — when false nothing is ever delivered. */
@@ -22,22 +54,13 @@ export const DEFAULT_PREFS: NotificationPrefs = {
     notifyOnAutoAdd: true,
 };
 
-// Foreground presentation. Without this a notification fired while the app is
-// open is swallowed silently.
-Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-        shouldShowBanner: true,
-        shouldShowList: true,
-        shouldPlaySound: false,
-        shouldSetBadge: false,
-    }),
-});
-
+// Foreground presentation is configured when the module loads successfully
+// above; no setup here keeps Expo Go safe.
 let androidChannelReady = false;
 
 /** Android requires an explicit channel before anything will surface. */
 async function ensureAndroidChannel(): Promise<void> {
-    if (Platform.OS !== 'android' || androidChannelReady) return;
+    if (!Notifications || Platform.OS !== 'android' || androidChannelReady) return;
 
     await Notifications.setNotificationChannelAsync('budget-alerts', {
         name: 'Budget alerts',
@@ -55,6 +78,8 @@ async function ensureAndroidChannel(): Promise<void> {
  */
 export async function ensurePermission(): Promise<boolean> {
     try {
+        if (!Notifications) return false;
+
         const { status: existing } = await Notifications.getPermissionsAsync();
         let status = existing;
 
@@ -89,6 +114,8 @@ export async function savePrefs(prefs: NotificationPrefs): Promise<void> {
 
 /** Deliver immediately. Returns false if permission was missing. */
 export async function notify(title: string, body: string): Promise<boolean> {
+    if (!Notifications) return false;
+
     const prefs = await loadPrefs();
     if (!prefs.enabled) return false;
 

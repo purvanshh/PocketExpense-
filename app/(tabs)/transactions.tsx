@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import {
+    Alert,
     FlatList,
     Text,
     TextInput,
@@ -9,11 +10,12 @@ import {
     View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useDispatch } from 'react-redux';
 
 import { FilterModal, FilterState } from '../../src/components/expense/FilterModal';
 import { TransactionItem } from '../../src/components/home/TransactionItem';
 import { useAppSelector } from '../../src/store/hooks';
-import { Expense } from '../../src/store/slices/expenseSlice';
+import { deleteExpenses, Expense } from '../../src/store/slices/expenseSlice';
 import { borderRadius, categoryTint, makeStyles, spacing, typography, useTheme } from '../../src/theme';
 
 export default function TransactionsScreen() {
@@ -21,12 +23,15 @@ export default function TransactionsScreen() {
     const { colors, isDark } = useTheme();
     const router = useRouter();
     const insets = useSafeAreaInsets();
+    const dispatch = useDispatch();
 
     const { items } = useAppSelector((state) => state.expenses);
     const { user } = useAppSelector((state) => state.auth);
 
     const [searchQuery, setSearchQuery] = useState('');
     const [showFilters, setShowFilters] = useState(false);
+    const [selectionMode, setSelectionMode] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [filters, setFilters] = useState<FilterState>({
         category: null,
         type: 'all',
@@ -86,6 +91,65 @@ export default function TransactionsScreen() {
         return result;
     }, [items, filters, searchQuery]);
 
+    const enterSelectionMode = () => {
+        setSelectedIds(new Set());
+        setSelectionMode(true);
+    };
+
+    const exitSelectionMode = () => {
+        setSelectionMode(false);
+        setSelectedIds(new Set());
+    };
+
+    const toggleSelect = (localId: string) => {
+        setSelectedIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(localId)) {
+                next.delete(localId);
+            } else {
+                next.add(localId);
+            }
+            return next;
+        });
+    };
+
+    const allVisibleSelected =
+        filteredTransactions.length > 0 &&
+        filteredTransactions.every((item) => selectedIds.has(item.localId));
+
+    const toggleSelectAll = () => {
+        setSelectedIds((prev) => {
+            const next = new Set(prev);
+            if (allVisibleSelected) {
+                for (const item of filteredTransactions) next.delete(item.localId);
+            } else {
+                for (const item of filteredTransactions) next.add(item.localId);
+            }
+            return next;
+        });
+    };
+
+    const confirmBulkDelete = () => {
+        const count = selectedIds.size;
+        if (count === 0) return;
+
+        Alert.alert(
+            'Delete transactions?',
+            `This will permanently remove ${count} transaction${count > 1 ? 's' : ''}.`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: () => {
+                        dispatch(deleteExpenses([...selectedIds]));
+                        exitSelectionMode();
+                    },
+                },
+            ]
+        );
+    };
+
     const renderItem = ({ item }: { item: Expense }) => (
         <TransactionItem
             id={item.localId}
@@ -95,15 +159,49 @@ export default function TransactionsScreen() {
             description={item.description}
             date={item.date}
             currency={user?.currency}
-            onPress={() => router.push(`/expense/${item.localId}`)}
+            selectionMode={selectionMode}
+            selected={selectedIds.has(item.localId)}
+            onPress={
+                selectionMode
+                    ? () => toggleSelect(item.localId)
+                    : () => router.push(`/expense/${item.localId}`)
+            }
         />
     );
 
     return (
         <View style={[styles.container, { paddingTop: insets.top }]}>
             <View style={styles.header}>
-                <Text style={styles.title}>Transactions</Text>
-                <Text style={styles.countText}>{filteredTransactions.length} items</Text>
+                {selectionMode ? (
+                    <>
+                        <TouchableOpacity
+                            style={styles.headerAction}
+                            onPress={exitSelectionMode}
+                            accessibilityRole="button"
+                        >
+                            <Text style={styles.headerActionText}>Cancel</Text>
+                        </TouchableOpacity>
+                        <Text style={styles.title}>{selectedIds.size} selected</Text>
+                        <View style={styles.headerAction} />
+                    </>
+                ) : (
+                    <>
+                        <View>
+                            <Text style={styles.title}>Transactions</Text>
+                            <Text style={styles.countText}>
+                                {filteredTransactions.length} items
+                            </Text>
+                        </View>
+                        <TouchableOpacity
+                            style={styles.selectBtn}
+                            onPress={enterSelectionMode}
+                            accessibilityRole="button"
+                        >
+                            <Ionicons name="checkbox-outline" size={18} color={colors.primary} />
+                            <Text style={styles.selectBtnText}>Select</Text>
+                        </TouchableOpacity>
+                    </>
+                )}
             </View>
 
             <View style={styles.searchRow}>
@@ -143,7 +241,10 @@ export default function TransactionsScreen() {
                 data={filteredTransactions}
                 renderItem={renderItem}
                 keyExtractor={(item) => item.localId}
-                contentContainerStyle={styles.listContent}
+                contentContainerStyle={[
+                    styles.listContent,
+                    selectionMode && styles.listContentSelection,
+                ]}
                 showsVerticalScrollIndicator={false}
                 ListEmptyComponent={
                     <View style={styles.emptyState}>
@@ -157,6 +258,40 @@ export default function TransactionsScreen() {
                     </View>
                 }
             />
+
+            {selectionMode && (
+                // The tab bar floats absolutely at the bottom (80 + inset), so the
+                // bar must sit above it or it gets hidden underneath.
+                <View style={[styles.selectionBar, { bottom: insets.bottom + 96 }]}>
+                    <TouchableOpacity
+                        style={styles.selectAllBtn}
+                        onPress={toggleSelectAll}
+                        accessibilityRole="button"
+                    >
+                        <Ionicons
+                            name={allVisibleSelected ? 'checkbox' : 'square-outline'}
+                            size={22}
+                            color={colors.primary}
+                        />
+                        <Text style={styles.selectAllText}>All</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[
+                            styles.deleteBtn,
+                            selectedIds.size === 0 && styles.deleteBtnDisabled,
+                        ]}
+                        onPress={confirmBulkDelete}
+                        disabled={selectedIds.size === 0}
+                        accessibilityRole="button"
+                    >
+                        <Ionicons name="trash-outline" size={18} color={colors.textWhite} />
+                        <Text style={styles.deleteBtnText}>
+                            Delete ({selectedIds.size})
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            )}
 
             <FilterModal
                 visible={showFilters}
@@ -179,6 +314,30 @@ const useStyles = makeStyles((c, isDark) => ({
     },
     title: { fontFamily: typography.fontFamily.bold, fontSize: typography.sizes.xxl, color: c.textMain },
     countText: { fontFamily: typography.fontFamily.regular, fontSize: typography.sizes.sm, color: c.textSecondary },
+    headerAction: {
+        minWidth: 72,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    headerActionText: {
+        fontFamily: typography.fontFamily.medium,
+        fontSize: typography.sizes.md,
+        color: c.primary,
+    },
+    selectBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        borderRadius: borderRadius.full,
+        backgroundColor: c.primary + '15',
+    },
+    selectBtnText: {
+        fontFamily: typography.fontFamily.medium,
+        fontSize: typography.sizes.sm,
+        color: c.primary,
+    },
     searchRow: {
         flexDirection: 'row',
         paddingHorizontal: spacing.xl,
@@ -223,6 +382,53 @@ const useStyles = makeStyles((c, isDark) => ({
     },
     filterBadgeText: { color: c.textWhite, fontSize: 10, fontWeight: 'bold' },
     listContent: { paddingHorizontal: spacing.xl, paddingBottom: 120 },
+    listContentSelection: { paddingBottom: 180 },
+    selectionBar: {
+        position: 'absolute',
+        left: spacing.xl,
+        right: spacing.xl,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.md,
+        backgroundColor: c.surfaceElevated,
+        borderRadius: borderRadius.xl,
+        padding: spacing.md,
+        elevation: 6,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.12,
+        shadowRadius: 12,
+    },
+    selectAllBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.xs,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.md,
+    },
+    selectAllText: {
+        fontFamily: typography.fontFamily.medium,
+        fontSize: typography.sizes.md,
+        color: c.primary,
+    },
+    deleteBtn: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+        paddingVertical: spacing.md,
+        borderRadius: borderRadius.xxl,
+        backgroundColor: c.error,
+    },
+    deleteBtnDisabled: {
+        opacity: 0.5,
+    },
+    deleteBtnText: {
+        fontFamily: typography.fontFamily.semiBold,
+        fontSize: typography.sizes.md,
+        color: c.textWhite,
+    },
     emptyState: { alignItems: 'center', paddingVertical: spacing.xxxl * 2 },
     emptyIcon: { fontSize: 48, marginBottom: spacing.md },
     emptyText: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.sizes.lg, color: c.textMain, marginBottom: spacing.xs },

@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { borderRadius, categoryTint, makeStyles, spacing, typography, useTheme } from '../../theme';
@@ -12,6 +13,9 @@ interface TransactionItemProps {
     date: string;
     currency?: string;
     onPress?: () => void;
+    /** When true the row renders a checkbox and taps toggle selection instead of navigating. */
+    selectionMode?: boolean;
+    selected?: boolean;
 }
 
 export const TransactionItem: React.FC<TransactionItemProps> = ({
@@ -23,6 +27,8 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
     date,
     currency = 'INR',
     onPress,
+    selectionMode = false,
+    selected = false,
 }) => {
     const styles = useStyles();
     const { colors, isDark } = useTheme();
@@ -34,12 +40,26 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
 
     return (
         <TouchableOpacity
-            style={styles.container}
+            style={[
+                styles.container,
+                selectionMode && selected && styles.containerSelected,
+            ]}
             onPress={onPress}
             activeOpacity={0.7}
             accessibilityRole="button"
             accessibilityLabel={`${label}, ${signedAmount}, ${formatDate(date)}`}
+            accessibilityState={selectionMode ? { selected } : undefined}
         >
+            {selectionMode && (
+                <View
+                    style={[
+                        styles.checkbox,
+                        selected && { backgroundColor: colors.primary, borderColor: colors.primary },
+                    ]}
+                >
+                    {selected && <Ionicons name="checkmark" size={14} color={colors.textWhite} />}
+                </View>
+            )}
             <View style={styles.leftContent}>
                 <View
                     style={[
@@ -84,6 +104,22 @@ const useStyles = makeStyles((c) => ({
         backgroundColor: c.cardBg,
         borderRadius: borderRadius.lg,
         marginBottom: spacing.sm,
+        borderWidth: 1.5,
+        borderColor: 'transparent',
+    },
+    containerSelected: {
+        borderColor: c.primary,
+        backgroundColor: c.primary + '0D',
+    },
+    checkbox: {
+        width: 22,
+        height: 22,
+        borderRadius: 11,
+        borderWidth: 2,
+        borderColor: c.textLight,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: spacing.md,
     },
     leftContent: {
         flexDirection: 'row',

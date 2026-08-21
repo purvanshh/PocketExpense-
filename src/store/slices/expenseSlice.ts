@@ -169,6 +169,30 @@ const expenseSlice = createSlice({
             recalc(state);
         },
 
+        /** Delete several expenses at once. Equivalent to one `deleteExpense` per id. */
+        deleteExpenses: (state, action: PayloadAction<string[]>) => {
+            const ids = new Set(action.payload);
+            if (ids.size === 0) return;
+
+            const removed = state.items.filter((item) => ids.has(item.localId));
+
+            state.items = state.items.filter((item) => !ids.has(item.localId));
+            state.pendingQueue = state.pendingQueue.filter((item) => !ids.has(item.localId));
+
+            for (const existing of removed) {
+                if (existing._id) {
+                    state.tombstones.push({
+                        localId: existing.localId,
+                        serverId: existing._id,
+                        deletedAt: new Date().toISOString(),
+                        attempts: 0,
+                    });
+                }
+            }
+
+            recalc(state);
+        },
+
         markAsSynced: (
             state,
             action: PayloadAction<{ localId: string; serverId: string }>
@@ -304,6 +328,7 @@ export const {
     addExpense,
     updateExpense,
     deleteExpense,
+    deleteExpenses,
     markAsSynced,
     markDeleteSynced,
     markDeleteFailed,

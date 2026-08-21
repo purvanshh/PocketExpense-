@@ -1,12 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
+    ActivityIndicator,
     Linking,
     Platform,
     ScrollView,
     Switch,
     Text,
+    TextInput,
     TouchableOpacity,
     View,
 } from 'react-native';
@@ -29,7 +31,15 @@ import {
     showNeverAskAgainAlert,
     showPermissionDeniedAlert,
 } from '../../src/services/smsPermission';
-import { initSmsListener, stopSmsListener } from '../../src/services/smsListener';
+import { clearDeduplicationCache } from '../../src/services/sms';
+import { initSmsListener, simulateBulkSms, simulateSmsForTesting, stopSmsListener } from '../../src/services/smsListener';
+
+const SIM_SAMPLES = [
+    { label: 'Debit · Amazon', body: 'Rs.450.00 debited from A/c XX1234 at Amazon on 03-Mar-2026' },
+    { label: 'Debit · Swiggy', body: 'Your A/c XX5678 is debited by Rs.1,250.50 on 02-03-2026 at Swiggy.' },
+    { label: 'Credit · Salary', body: 'Rs.50,000 credited to A/c XX1234 by NEFT. Salary for Feb 2026.' },
+    { label: 'Credit · Refund', body: 'Rs 12,500 received in A/c XX4321 from PayTM refund.' },
+];
 
 export default function SmsDetectionSettings() {
     const styles = useStyles();
@@ -46,6 +56,10 @@ export default function SmsDetectionSettings() {
         autoAddCount,
     } = useAppSelector((s) => s.sms);
 
+    const [simSender, setSimSender] = useState('VM-HDFCBK');
+    const [simBody, setSimBody] = useState(SIM_SAMPLES[0].body);
+    const [simBulkRunning, setSimBulkRunning] = useState(false);
+
     useEffect(() => {
         checkSmsPermission().then((status) => {
             dispatch(setPermissionStatus(status));
@@ -55,6 +69,14 @@ export default function SmsDetectionSettings() {
     const handleToggle = useCallback(
         async (value: boolean) => {
             if (value) {
+                if (__DEV__) {
+                    // Expo Go can't grant SMS permission and ships no native
+                    // SMS listener; the simulator drives the pipeline directly,
+                    // so allow the toggle so both paths can be exercised.
+                    dispatch(enableSmsDetection());
+                    return;
+                }
+
                 const status = await requestReceiveSmsPermission();
                 dispatch(setPermissionStatus(status));
 
@@ -73,6 +95,22 @@ export default function SmsDetectionSettings() {
         },
         [dispatch]
     );
+
+    const handleSimulate = useCallback(async () => {
+        // Re-sending the same message would otherwise be dropped as a duplicate.
+        await clearDeduplicationCache();
+        simulateSmsForTesting(simBody, simSender);
+    }, [simBody, simSender]);
+
+    const handleBulk = useCallback(async () => {
+        setSimBulkRunning(true);
+        try {
+            await clearDeduplicationCache();
+            await simulateBulkSms(50, simBody, simSender);
+        } finally {
+            setSimBulkRunning(false);
+        }
+    }, [simBody, simSender]);
 
     const getStatusColor = () => {
         switch (permissionStatus) {
@@ -256,6 +294,80 @@ export default function SmsDetectionSettings() {
                         </>
                     )}
                 </Card>
+
+                {/* Simulator (dev only) */}
+                {__DEV__ && (
+                    <>
+                        <Text style={styles.sectionTitle}>Simulator (Dev only)</Text>
+                        <Card style={styles.infoCard}>
+                            <Text style={styles.simLabel}>Sender</Text>
+                            <TextInput
+                                style={styles.simInput}
+                                value={simSender}
+                                onChangeText={setSimSender}
+                                autoCapitalize="characters"
+                                placeholder="VM-HDFCBK"
+                                placeholderTextColor={colors.textLight}
+                            />
+
+                            <Text style={styles.simLabel}>SMS Body</Text>
+                            <TextInput
+                                style={[styles.simInput, styles.simBodyInput]}
+                                value={simBody}
+                                onChangeText={setSimBody}
+                                multiline
+                                placeholderTextColor={colors.textLight}
+                            />
+
+                            <View style={styles.simChipRow}>
+                                {SIM_SAMPLES.map((s) => (
+                                    <TouchableOpacity
+                                        key={s.label}
+                                        style={styles.simChip}
+                                        onPress={() => setSimBody(s.body)}
+                                    >
+                                        <Text style={styles.simChipText}>{s.label}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+
+                            <View style={styles.simActions}>
+                                <TouchableOpacity
+                                    style={styles.simSendBtn}
+                                    onPress={handleSimulate}
+                                    accessibilityRole="button"
+                                >
+                                    <Ionicons name="send" size={16} color={colors.textWhite} />
+                                    <Text style={styles.simSendText}>Send SMS</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={styles.simBulkBtn}
+                                    onPress={handleBulk}
+                                    disabled={simBulkRunning}
+                                    accessibilityRole="button"
+                                >
+                                    {simBulkRunning ? (
+                                        <ActivityIndicator size="small" color={colors.primary} />
+                                    ) : (
+                                        <>
+                                            <Ionicons name="flash" size={16} color={colors.primary} />
+                                            <Text style={styles.simBulkText}>Bulk (50)</Text>
+                                        </>
+                                    )}
+                                </TouchableOpacity>
+                            </View>
+
+                            <Text style={styles.simHint}>
+                                Runs the real detection pipeline. With &quot;Log without asking&quot;
+                                off you&apos;ll get a confirmation sheet; with it on the expense is
+                                added instantly with an UNDO toast. The dedup cache is cleared on
+                                each send so you can reuse the same message. In Expo Go the toggle
+                                above enables directly — SMS permission isn&apos;t available there.
+                            </Text>
+                        </Card>
+                    </>
+                )}
 
                 {/* How it Works */}
                 <Text style={styles.sectionTitle}>How it Works</Text>
@@ -581,5 +693,83 @@ const useStyles = makeStyles((c, isDark) => ({
         textAlign: 'center',
         marginTop: spacing.sm,
         lineHeight: 22,
+    },
+    simLabel: {
+        fontFamily: typography.fontFamily.medium,
+        fontSize: typography.sizes.sm,
+        color: c.textSecondary,
+        marginBottom: spacing.xs,
+        marginTop: spacing.md,
+    },
+    simInput: {
+        backgroundColor: c.inputBg,
+        borderRadius: borderRadius.sm,
+        padding: spacing.md,
+        fontFamily: typography.fontFamily.regular,
+        fontSize: typography.sizes.md,
+        color: c.textMain,
+    },
+    simBodyInput: {
+        minHeight: 72,
+        textAlignVertical: 'top',
+    },
+    simChipRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: spacing.sm,
+        marginTop: spacing.md,
+    },
+    simChip: {
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.xs,
+        borderRadius: borderRadius.full,
+        backgroundColor: c.primary + '15',
+    },
+    simChipText: {
+        fontFamily: typography.fontFamily.medium,
+        fontSize: typography.sizes.xs,
+        color: c.primary,
+    },
+    simActions: {
+        flexDirection: 'row',
+        gap: spacing.sm,
+        marginTop: spacing.lg,
+    },
+    simSendBtn: {
+        flex: 1,
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 6,
+        paddingVertical: spacing.md,
+        borderRadius: borderRadius.xxl,
+        backgroundColor: c.primaryDark,
+    },
+    simSendText: {
+        fontFamily: typography.fontFamily.semiBold,
+        fontSize: typography.sizes.md,
+        color: c.textWhite,
+    },
+    simBulkBtn: {
+        flex: 1,
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 6,
+        paddingVertical: spacing.md,
+        borderRadius: borderRadius.xxl,
+        backgroundColor: c.inputBg,
+    },
+    simBulkText: {
+        fontFamily: typography.fontFamily.medium,
+        fontSize: typography.sizes.md,
+        color: c.primary,
+    },
+    simHint: {
+        fontFamily: typography.fontFamily.regular,
+        fontSize: typography.sizes.xs,
+        color: c.textSecondary,
+        marginTop: spacing.md,
+        lineHeight: 18,
     },
 }));
