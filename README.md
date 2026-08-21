@@ -1,6 +1,6 @@
 # PocketExpense+ — Production-Grade Offline-First Financial Tracking System
 
-A full-stack financial tracking application featuring automated recurring transaction processing, category-based budgeting, aggregation-driven analytics with anomaly detection, Android SMS-based automatic expense detection with 99% parsing accuracy, and rate-limited JWT-secured REST APIs — all built on an offline-first architecture.
+A full-stack financial tracking application featuring automated recurring transaction processing, category-based budgeting with threshold alerts, aggregation-driven analytics with anomaly detection, Android SMS-based automatic expense detection with 99% parsing accuracy, receipt scanning with OCR prefill, CSV/PDF export, an in-app notification feed, and rate-limited JWT-secured REST APIs — all built on an offline-first architecture.
 
 ---
 
@@ -12,14 +12,19 @@ A full-stack financial tracking application featuring automated recurring transa
 - [Database Schemas](#database-schemas)
 - [Frontend Architecture](#frontend-architecture)
 - [Backend Architecture](#backend-architecture)
+- [Features Overview](#features-overview)
 - [Feature 1 — Authentication System](#feature-1--authentication-system)
-- [Feature 2 — Expense Management (CRUD + Offline Sync)](#feature-2--expense-management-crud--offline-sync)
-- [Feature 3 — Category-Based Budgets](#feature-3--category-based-budgets)
+- [Feature 2 — Expense Management (CRUD + Offline Sync + Bulk Delete)](#feature-2--expense-management-crud--offline-sync--bulk-delete)
+- [Feature 3 — Category-Based Budgets + Threshold Alerts](#feature-3--category-based-budgets--threshold-alerts)
 - [Feature 4 — Recurring Transactions Engine](#feature-4--recurring-transactions-engine)
 - [Feature 5 — Advanced Filtering + Pagination](#feature-5--advanced-filtering--pagination)
 - [Feature 6 — Smart Insights Engine](#feature-6--smart-insights-engine)
-- [Feature 7 — Production Hardening](#feature-7--production-hardening)
-- [Feature 8 — Android SMS Transaction Detection](#feature-8--android-sms-transaction-detection)
+- [Feature 7 — Receipt Scanning + OCR](#feature-7--receipt-scanning--ocr)
+- [Feature 8 — Android SMS Transaction Detection + Auto-Add](#feature-8--android-sms-transaction-detection--auto-add)
+- [Feature 9 — Export Transactions (CSV / PDF)](#feature-9--export-transactions-csv--pdf)
+- [Feature 10 — Notifications (Local + In-App Feed + Budget Alerts)](#feature-10--notifications-local--in-app-feed--budget-alerts)
+- [Feature 11 — Theme System (Light / Dark)](#feature-11--theme-system-light--dark)
+- [Feature 12 — Production Hardening](#feature-12--production-hardening)
 - [API Reference](#api-reference)
 - [Request / Response Examples](#request--response-examples)
 - [Database Indexes](#database-indexes)
@@ -52,10 +57,22 @@ A full-stack financial tracking application featuring automated recurring transa
 | Axios | 1.13.2 | HTTP client |
 | AsyncStorage | 2.2.0 | Local persistence (offline-first) |
 | NetInfo | 11.4.1 | Network state detection |
+| Expo Camera | 17.0.10 | Receipt photo capture |
+| Expo Print | 15.0.8 | PDF generation (exports) |
+| Expo Sharing | 14.0.8 | Share sheet (exports) |
+| Expo FileSystem | 19.0.23 | File writes (CSV) |
+| Expo Notifications | 0.32.16 | Local notifications + Android channel |
+| Expo LinearGradient | 15.0.8 | Gradient header/branding |
+| Expo Haptics | 15.0.8 | Haptic feedback |
+| Expo Image | 3.0.11 | Receipt thumbnail rendering |
+| Expo Linking | 8.0.11 | Deep link to device settings |
+| React Navigation | 7.x | Bottom tabs + elements |
 | date-fns | 4.1.0 | Date manipulation |
 | Poppins (Google Fonts) | — | Typography |
 | React Native Reanimated | 4.1.1 | Animations |
 | React Native SVG | 15.12.1 | Vector graphics |
+| React Native Gesture Handler | 2.28.0 | Gesture system (curved tab bar) |
+| uuid | 13.0.0 | `localId` generation for offline sync |
 | TypeScript | 5.9.2 | Type safety |
 | React Compiler | Experimental | Automatic memoization |
 
@@ -92,40 +109,44 @@ A full-stack financial tracking application featuring automated recurring transa
 ## System Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                     React Native (Expo SDK 54)                          │
-│                                                                         │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐               │
-│  │  Home    │  │  Txns    │  │ Analytics│  │ Account  │               │
-│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘               │
-│       └──────────────┼──────────────┼──────────────┘                    │
-│                                                                         │
-│  ┌─────────────────── Redux Toolkit Store ────────────────────────┐    │
-│  │  auth │ expenses │ budgets │ insights │ sync │ sms             │    │
-│  └───────────────────────────────────────────────────────────────┘     │
-│                                                                         │
-│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐     │
-│  │  Sync Engine     │  │  SMS Pipeline    │  │  Category        │     │
-│  │  (NetInfo +      │  │  (Android-only   │  │  Detector        │     │
-│  │   AsyncStorage)  │  │   local parsing) │  │  (keyword NLP)   │     │
-│  └──────────────────┘  └──────────────────┘  └──────────────────┘     │
-│                                                                         │
-│                 Axios + JWT Token Interceptor                           │
-└─────────────────────────┬───────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────┐
+│                   React Native (Expo SDK 54)                             │
+│                                                                          │
+│  ┌───────────┐ ┌───────────┐ ┌────────────┐ ┌───────────┐ ┌───────────┐ │
+│  │   Home    │ │  Txns     │ │  Analytics │ │  Account  │ │  Export   │ │
+│  └─────┬─────┘ └─────┬─────┘ └─────┬──────┘ └─────┬─────┘ └─────┬─────┘ │
+│        └─────────────┼─────────────┼──────────────┼──────────────┤       │
+│                                                                          │
+│  ┌──────────────── Redux Toolkit Store (persisted) ──────────────────┐  │
+│  │  auth │ expenses │ budgets │ insights │ sync │ sms │notifications│  │
+│  └───────────────────────────────────────────────────────────────────┘  │
+│  │ persistMiddleware (AsyncStorage) – persistence outside reducers      │
+│                                                                          │
+│  ┌──────────────────┐ ┌──────────────────┐ ┌─────────────────────┐     │
+│  │  Sync Engine     │ │  SMS Pipeline    │ │  Receipt Pipeline   │     │
+│  │  (NetInfo,       │ │  (Android-only   │ │  (expo-camera →     │     │
+│  │   backoff,       │ │   local parsing, │ │   OCR → heuristic   │     │
+│  │   tombstones)    │ │   auto-add+undo) │ │   parser → prefill) │     │
+│  └──────────────────┘ └──────────────────┘ └─────────────────────┘     │
+│  Budget alerts → local notifications + in-app feed (notificationSlice)  │
+│  Theme system: ThemeContext (light / dark / system) + makeStyles        │
+│                                                                          │
+│                 Axios + JWT Token Interceptor                            │
+└─────────────────────────┬────────────────────────────────────────────────┘
                           │ HTTPS / REST
-┌─────────────────────────▼───────────────────────────────────────────────┐
+┌─────────────────────────▼────────────────────────────────────────────────┐
 │                      Express API Server                                  │
 │                                                                          │
 │  ┌────────────────────────────────────────────────────────────────────┐ │
-│  │  Middleware Pipeline:                                               │ │
+│  │  Middleware Pipeline:                                              │ │
 │  │  Helmet → mongoSanitize → HPP → CORS → JSON → Rate Limit → Auth  │ │
 │  │  → Joi Validation → Controller → Service → Model                   │ │
 │  └────────────────────────────────────────────────────────────────────┘ │
 │                                                                          │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐               │
-│  │  Auth    │  │ Expenses │  │ Budgets  │  │ Insights │               │
-│  │  Routes  │  │  Routes  │  │  Routes  │  │  Routes  │               │
-│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘               │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐                │
+│  │  Auth    │  │ Expenses │  │ Budgets  │  │ Insights │                │
+│  │  Routes  │  │  Routes  │  │  Routes  │  │  Routes  │                │
+│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘                │
 │       ▼              ▼              ▼              ▼                     │
 │  ┌──────────────────────────────────────────────────────────────┐      │
 │  │                    Services Layer                             │      │
@@ -133,13 +154,13 @@ A full-stack financial tracking application featuring automated recurring transa
 │  │  recurring.service │ cron.service                             │      │
 │  └──────────────────────────────────────────────────────────────┘      │
 │                                                                          │
-│  ┌─────────────────┐         ┌────────────────────────┐                │
-│  │ Cron Service    │         │ Winston Logger          │                │
-│  │ (hourly)        │         │ (file + console)        │                │
-│  └─────────────────┘         └────────────────────────┘                │
+│  ┌─────────────────┐         ┌────────────────────────┐                 │
+│  │ Cron Service    │         │ Winston Logger         │                 │
+│  │ (hourly)        │         │ (file + console)       │                 │
+│  └─────────────────┘         └────────────────────────┘                 │
 │                                                                          │
 │               Centralized Error Handler (AppError)                      │
-└─────────────────────────┬───────────────────────────────────────────────┘
+└─────────────────────────┬────────────────────────────────────────────────┘
                           │
                  ┌────────▼────────┐
                  │    MongoDB      │
@@ -241,26 +262,34 @@ A full-stack financial tracking application featuring automated recurring transa
 |-------|--------|-------------|
 | `/(auth)/login` | Login | Email + password login, JWT storage |
 | `/(auth)/register` | Register | User registration with validation |
-| `/(tabs)/` | Home | Balance card, recent transactions, date picker, sync indicator |
-| `/(tabs)/transactions` | Transactions | Full list with search, filter modal, sort |
+| `/(tabs)/` | Home | Balance card, real month stats, recent transactions, date picker, sync indicator |
+| `/(tabs)/transactions` | Transactions | List, search, filter modal, sort, selection mode + bulk delete |
 | `/(tabs)/analytics` | Analytics | Spending chart, income/expense breakdown, history |
-| `/(tabs)/account` | Account | Profile, budget editing, settings, logout |
-| `/expense/add` | Add Expense | Amount input, category grid, date picker, recurring toggle |
+| `/(tabs)/account` | Account | Profile, budgets, insights, export data, settings, logout |
+| `/expense/add` | Add Expense | Amount input, category grid, date picker, recurring toggle, receipt attach |
 | `/expense/[id]` | Edit Expense | Edit/delete existing expense |
+| `/expense/scan` | Scan Receipt | Camera capture → OCR → prefill add form |
 | `/budgets` | Budgets | Category budget CRUD with progress bars |
 | `/insights` | Insights | Growth trend, top categories, weekday/weekend, anomalies |
-| `/settings/sms-detection` | SMS Settings | Toggle, permission status, privacy info (Android only) |
+| `/export` | Export | Transaction export as CSV or PDF (period selectable) |
+| `/notifications` | Notifications | In-app notification feed (budget alerts, auto-add, info) |
+| `/settings/sms-detection` | SMS Settings | Toggle, permission status, auto-add, privacy info (Android only) |
+| `/settings/appearance` | Appearance | Light / dark / system theme choice |
+| `/settings/notifications` | Notification Prefs | Master switch, warn threshold, notify-on-exceed, auto-add alerts |
 
 ### Redux Store
 
 | Slice | State | Key Actions |
 |-------|-------|-------------|
 | `auth` | user, token, isAuthenticated, isLoading | hydrateAuth, login, logout, updateBudgetLimit |
-| `expenses` | items, pendingQueue, totals | addExpense, updateExpense, deleteExpense, markAsSynced, hydrateExpenses |
+| `expenses` | items, pendingQueue, tombstones, retry, totals | addExpense, updateExpense, deleteExpense, deleteExpenses (bulk), markAsSynced, markDeleteSynced, queueRetry, resetRetry, applyServerSnapshot |
 | `budgets` | items, loading, error | fetchAll, create, update, delete (async thunks) |
 | `insights` | data, loading, error | fetchAdvanced (async thunk) |
-| `sync` | isOnline, isSyncing, pendingCount, lastSyncTime | setOnlineStatus, setSyncing, setPendingCount |
-| `sms` | isEnabled, permissionStatus, lastDetectedTransaction, showConfirmation, detectionCount | enableSmsDetection, disableSmsDetection, setDetectedTransaction, clearDetectedTransaction |
+| `sync` | isOnline, isSyncing, pendingCount, lastSyncTime, syncError | setOnlineStatus, setSyncing, setPendingCount, setLastSyncTime, setSyncError |
+| `sms` | isEnabled, permissionStatus, lastDetectedTransaction, showConfirmation, detectionCount, autoAddEnabled, autoAddThreshold, lastAutoAdded, autoAddCount | enableSmsDetection, disableSmsDetection, setDetectedTransaction, clearDetectedTransaction, setAutoAddEnabled, setAutoAddThreshold, recordAutoAdded, clearAutoAdded |
+| `notifications` | items (feed, capped at 50) | addNotification, markRead, markAllRead, clearNotifications, hydrateNotifications |
+
+**Persistence:** state is hydrated/persisted via `persistMiddleware` (`src/store/persistMiddleware.ts`) — persistence logic lives outside reducers (Redux middleware), keeping reducers pure and testable.
 
 ### Offline-First Sync Engine
 
@@ -289,6 +318,13 @@ A full-stack financial tracking application featuring automated recurring transa
                               └────────────┘
 ```
 
+**Resilience features:**
+- **Tombstones** — offline deletes are tracked and propagated to the server on the next sync, so deletions never resurrect
+- **Exponential backoff** — failed syncs retry with `2s → 4s → … → 5min` backoff (capped), stored as `nextAttemptAt` in `expenses.retry`
+- **Paged pull** — server snapshots are pulled page-by-page (100 records/page, hard cap of 20 pages) so a flaky response can't loop forever
+- **Force sync** — pull-to-refresh bypasses the backoff window since the user explicitly asked
+- **Delete retry cap** — queued deletes give up after 5 failed attempts (`MAX_DELETE_ATTEMPTS`) rather than retrying forever
+
 ### Component Library
 
 | Component | Path | Description |
@@ -301,11 +337,12 @@ A full-stack financial tracking application featuring automated recurring transa
 | CategoryGrid | `src/components/expense/CategoryGrid.tsx` | Selectable grid of 20 categories |
 | FilterModal | `src/components/expense/FilterModal.tsx` | Multi-filter: type, category, date range, sort |
 | BalanceCard | `src/components/home/BalanceCard.tsx` | Total balance with percent change |
-| TransactionItem | `src/components/home/TransactionItem.tsx` | Expense/income row with icon |
+| TransactionItem | `src/components/home/TransactionItem.tsx` | Expense/income row with icon (selectable in bulk mode) |
 | SpendingChart | `src/components/analytics/SpendingChart.tsx` | Bar chart (income vs expense) |
 | InsightCard | `src/components/analytics/InsightCard.tsx` | Metric card with icon |
 | SyncIndicator | `src/components/sync/SyncIndicator.tsx` | Online/offline/pending status |
 | SmsTransactionModal | `src/components/sms/SmsTransactionModal.tsx` | SMS detection confirmation: preview/edit/dismiss |
+| AutoAddToast | `src/components/sms/AutoAddToast.tsx` | Undo toast for auto-logged SMS transactions (6s window) |
 
 ---
 
@@ -336,6 +373,25 @@ Every API response follows this structure:
 
 ---
 
+## Features Overview
+
+| # | Feature | Status |
+|---|---------|--------|
+| 1 | JWT authentication (register / login / profile) | ✅ |
+| 2 | Expense CRUD + offline sync + bulk delete | ✅ |
+| 3 | Category budgets + threshold alerts | ✅ |
+| 4 | Recurring transactions (hourly cron, idempotent) | ✅ |
+| 5 | Advanced filtering + pagination | ✅ |
+| 6 | Smart insights (growth, top categories, weekday/weekend, anomalies) | ✅ |
+| 7 | Receipt scanning + OCR prefill | ✅ |
+| 8 | Android SMS detection + auto-add with undo | ✅ |
+| 9 | Export transactions as CSV / PDF | ✅ |
+| 10 | Notifications (local + in-app feed + budget alerts) | ✅ |
+| 11 | Theme system (light / dark / system) | ✅ |
+| 12 | Production hardening (security, rate limits, logging) | ✅ |
+
+---
+
 ## Feature 1 — Authentication System
 
 - JWT-based authentication with 7-day expiry
@@ -349,7 +405,7 @@ Every API response follows this structure:
 
 ---
 
-## Feature 2 — Expense Management (CRUD + Offline Sync)
+## Feature 2 — Expense Management (CRUD + Offline Sync + Bulk Delete)
 
 - Create, read, update, delete expenses with full validation
 - Each expense has a `localId` for offline-first identification
@@ -358,11 +414,12 @@ Every API response follows this structure:
 - When online, pending queue is bulk-synced via `POST /api/expenses/sync`
 - Server returns `localId → serverId` mappings for reconciliation
 - NetInfo listener triggers automatic sync when connectivity is restored
+- **Bulk delete** — transactions screen has a selection mode; `deleteExpenses(localIds)` removes matching items from both `items` and `pendingQueue`, and offline deletes are tracked via tombstones so they propagate to the server
 - Supports 20 categories and 6 payment methods
 
 ---
 
-## Feature 3 — Category-Based Budgets
+## Feature 3 — Category-Based Budgets + Threshold Alerts
 
 - Users create monthly budgets per category (e.g., "Food: ₹5,000 for March 2026")
 - Compound unique index prevents duplicate budgets per user + category + month + year
@@ -371,6 +428,13 @@ Every API response follows this structure:
 - Recalculation uses MongoDB aggregation to sum expenses for the matching category/month/year
 - Frontend displays progress bars with color-coded over-budget warnings
 - Full CRUD: create, list (current month), update amount, delete
+
+### Budget Threshold Alerts (client-side, offline)
+
+- Pure threshold logic in `src/services/budgetThresholds.ts` (`findCrossings`) — unit-testable, no store/storage imports
+- `budgetAlerts.ts` (`checkBudgets`) evaluates the overall budget plus every category budget after any expense change and delivers configured local notifications
+- Thresholds: warning at ≥ 80% (configurable), exceeded at ≥ 100%
+- Alerts fire **once per budget per threshold per month** — a `fired` key set is persisted in AsyncStorage (`overall:80`, `food:100`, …) and reset automatically when the month rolls over
 
 ---
 
@@ -442,53 +506,24 @@ Every API response follows this structure:
 - All computations use MongoDB aggregation pipelines (no in-memory processing)
 - Z-score formula: `z = (value - mean) / stdDev`
 - Anomalies include the raw amount, category, date, and z-score value
+- Home screen month stats are computed **locally** (`src/utils/stats.ts`) so they work offline and never disagree with the displayed total
 
 ---
 
-## Feature 7 — Production Hardening
+## Feature 7 — Receipt Scanning + OCR
 
-### Input Validation (Joi)
-
-- Every route has a Joi schema for request body and/or query parameters
-- Validation middleware strips unknown fields and returns structured error messages
-- Separate validators for auth, expenses, and budgets
-
-### Error Handling
-
-- `AppError` class extends `Error` with `statusCode` and `isOperational` fields
-- Centralized error handler catches Mongoose validation errors, JWT errors, duplicate key errors, cast errors
-- Stack traces are hidden in production responses
-- All errors are logged via Winston
-
-### Security Middleware
-
-| Middleware | Purpose |
-|-----------|---------|
-| Helmet | Sets secure HTTP headers (CSP, HSTS, X-Frame-Options, etc.) |
-| express-mongo-sanitize | Strips `$` and `.` from request body/params to prevent NoSQL injection |
-| hpp | Prevents HTTP parameter pollution attacks |
-| Rate Limiter | 100 requests/15min (API), 20 requests/15min (auth) |
-| CORS | Configurable origin whitelist |
-| JSON limit | 10MB request body limit |
-
-### API Versioning
-
-- All routes available at `/api/v1/*` (versioned) and `/api/*` (backward-compatible)
-- Health check: `GET /api/health`
-
-### Logging (Winston)
-
-- Console transport (colorized, dev-only in development)
-- File transports: `logs/error.log` (errors), `logs/combined.log` (all levels)
-- Request logging with method, URL, and IP
-
-### Graceful Shutdown
-
-- SIGTERM and SIGINT handlers stop the cron service and exit cleanly
+- Camera screen (`app/expense/scan.tsx`) uses `expo-camera`; on capture, the photo is passed into OCR and the parsed data prefills the Add Expense form
+- **OCR architecture** (`src/services/receipt/ocr.ts`): optional `@react-native-ml-kit/text-recognition` provider (fully offline, free — requires a custom dev build / EAS build; Expo Go falls back to attaching the photo and typing the amount). The layer isolates the provider so a cloud OCR can be swapped in by implementing one function
+- **Heuristic parser** (`src/services/receipt/parseReceipt.ts`): pure and synchronous
+  - Extracts amount via weighted total labels (`grand total` > `total payable` > `total` > `amount/paid`), rejects subtotal/tax/discount/GSTIN/identifier lines
+  - Extracts merchant (stopword-filtered) and date (from locale month names / numeric formats)
+  - Returns `confidence` (0–1), `candidateAmounts` (largest first, for a picker), and guardrails (₹1 – ₹10,00,000)
+  - Philosophy mirrors the SMS parser: prefer `null` over a confidently wrong number
+- On the add screen the receipt image is attached alongside the prefilled fields (`amount`, `description`, `date`, `ocrConfidence`)
 
 ---
 
-## Feature 8 — Android SMS Transaction Detection
+## Feature 8 — Android SMS Transaction Detection + Auto-Add
 
 ### Overview
 
@@ -540,13 +575,21 @@ Incoming SMS (Android OS)
            │
            ▼
 ┌───────────────────────────────┐
-│  Confirmation Modal           │  User can:
-│  • Preview (amount, merchant, │  ✓ Confirm → auto-create expense
-│    category, type)            │  ✓ Edit before saving
-│  • Edit mode (all fields)     │  ✓ Dismiss
-│  • Confidence indicator       │
+│  Confidence routing           │
+│  ≥ autoAddThreshold (0.9)     │
+│  + autoAdd ON → log now,      │
+│  notify, show undo toast      │
+│  otherwise → confirmation     │
+│  modal (preview/edit/dismiss) │
 └───────────────────────────────┘
 ```
+
+### Auto-Add + Undo
+
+- New: **auto-add mode** — when enabled, high-confidence transactions (≥ `autoAddThreshold`, default **0.9**, deliberately stricter than the 0.75 that opens the sheet) are logged immediately without asking
+- Every auto-add is paired with a notification and an **AutoAddToast** with a 6-second **Undo** action (`clearAutoAdded` / `deleteExpense`) — logging without asking is only safe because reversing it is trivial
+- Auto-add state persists: `autoAddEnabled`, `autoAddThreshold` (clamped 0.5–1), `autoAddCount`; disabling SMS detection also disables auto-add
+- Reversing an auto-add (or any expense change) re-checks budget alerts
 
 ### Confidence Scoring Engine
 
@@ -613,6 +656,93 @@ HDFC, SBI, ICICI, Axis, Kotak, PNB, BOI, Canara, Union, IDFC, YES, IDBI, RBL, Fe
 3. Rationale dialog explains: "Messages are parsed locally and never sent to any server"
 4. If `NEVER_ASK_AGAIN` → alert with deep link to device Settings
 5. On grant → listener starts, on deny → graceful fallback with explanation
+
+---
+
+## Feature 9 — Export Transactions (CSV / PDF)
+
+- Export screen (`app/export.tsx`) with period presets: **This month, Last month, Last 3 months, This year, All**
+- **CSV** — RFC 4180 escaping (quotes values containing commas/quotes/newlines, doubles embedded quotes), expenses signed negative and income positive so the column sums to the balance, headers + trailing newline, resolved category/payment-method labels
+- **PDF** — rendered from an HTML template via `expo-print` (stylesheet-driven, bundle-safe), HTML-escaped so a description like `<b>Lunch</b>` cannot break the layout, with a summary block (total expense / income / balance / by-category table)
+- Both flows write to the cache directory and open the **share sheet** (`expo-sharing`), so files can be saved to Google Drive, Mail, Files, etc.
+- **Testable design**: all formatting logic lives in pure `src/services/exportFormat.ts` (no native modules imported), unit-tested in `tests/export/exportFormat.test.ts`
+
+---
+
+## Feature 10 — Notifications (Local + In-App Feed + Budget Alerts)
+
+### Local Notifications (`src/services/notifications.ts`)
+
+- `expo-notifications` with an explicit Android channel (`budget-alerts`, PRIVATE visibility, vibration pattern)
+- **Expo Go guard**: Expo Go (SDK 53+) drops remote notification support and `expo-notifications` logs errors on import, so the module is skipped entirely there and every call degrades to a graceful no-op
+- Prefs persisted in AsyncStorage (`notificationPrefs`): `enabled`, `warnThreshold` (default 80), `notifyOnExceed`, `notifyOnAutoAdd` — only requests permission when not already decided
+
+### In-App Notification Feed (`notificationSlice`)
+
+- Feed entries with `kind`: `budget-warning`, `budget-exceeded`, `auto-added`, `info`
+- Capped at 50 items so persisted storage cannot grow unbounded
+- Actions: `addNotification`, `markRead`, `markAllRead`, `clearNotifications`, `hydrateNotifications`; feed screen (`app/notifications.tsx`) with read/unread styling and mark-all-read
+
+### Alert Sources
+
+| Source | Where fired |
+|--------|-------------|
+| Budget threshold crossed (80% / 100%) | `budgetAlerts.checkBudgets()` after expense changes |
+| SMS auto-add logged | `smsListener.autoAddTransaction()` |
+| Manual / system notices | `info` kind, via `addNotification` |
+
+---
+
+## Feature 11 — Theme System (Light / Dark)
+
+- **Two palettes** (`src/theme/colors.ts`): `lightColors` (violet glassmorphism) and `darkColors` — identical key sets so components never branch on mode
+- **ThemeContext** (`ThemeProvider` / `useTheme`): mode `light` | `dark` | `system` (follows OS via `useColorScheme`), choice persisted in AsyncStorage and restored on mount (`isReady` gate prevents a flash of the wrong scheme on startup)
+- **`makeStyles(colors => styles)`**: builds a styles hook that defers `StyleSheet.create` into the component and memoizes per palette, so styles rebuild only when the scheme actually flips — made a runtime theme switch possible without tearing down the tree
+- **Dark-aware shadows** (`elevation(isDark)`): light mode uses soft shadows, dark mode uses lifted surface colors + heavier shadows
+- Settings screen (`app/settings/appearance.tsx`) exposes Light / Dark / System; the tab bar, auth screens, shared components, and all feature screens are theme-aware
+
+---
+
+## Feature 12 — Production Hardening
+
+### Input Validation (Joi)
+
+- Every route has a Joi schema for request body and/or query parameters
+- Validation middleware strips unknown fields and returns structured error messages
+- Separate validators for auth, expenses, and budgets
+
+### Error Handling
+
+- `AppError` class extends `Error` with `statusCode` and `isOperational` fields
+- Centralized error handler catches Mongoose validation errors, JWT errors, duplicate key errors, cast errors
+- Stack traces are hidden in production responses
+- All errors are logged via Winston
+
+### Security Middleware
+
+| Middleware | Purpose |
+|-----------|---------|
+| Helmet | Sets secure HTTP headers (CSP, HSTS, X-Frame-Options, etc.) |
+| express-mongo-sanitize | Strips `$` and `.` from request body/params to prevent NoSQL injection |
+| hpp | Prevents HTTP parameter pollution attacks |
+| Rate Limiter | 100 requests/15min (API), 20 requests/15min (auth) |
+| CORS | Configurable origin whitelist |
+| JSON limit | 10MB request body limit |
+
+### API Versioning
+
+- All routes available at `/api/v1/*` (versioned) and `/api/*` (backward-compatible)
+- Health check: `GET /api/health`
+
+### Logging (Winston)
+
+- Console transport (colorized, dev-only in development)
+- File transports: `logs/error.log` (errors), `logs/combined.log` (all levels)
+- Request logging with method, URL, and IP
+
+### Graceful Shutdown
+
+- SIGTERM and SIGINT handlers stop the cron service and exit cleanly
 
 ---
 
@@ -718,21 +848,6 @@ curl -X POST http://localhost:5001/api/expenses \
 }
 ```
 
-### Paginated Expenses
-
-```json
-{
-  "success": true,
-  "message": "Expenses fetched",
-  "data": {
-    "expenses": [ ... ],
-    "totalPages": 5,
-    "currentPage": 1,
-    "totalItems": 98
-  }
-}
-```
-
 ### Advanced Insights
 
 ```json
@@ -791,6 +906,8 @@ curl -X POST http://localhost:5001/api/expenses \
 
 ## Testing
 
+> All suites green: **backend 96/96** — **frontend 102/102**.
+
 ### Backend Tests (96 tests, 6 suites)
 
 ```bash
@@ -813,22 +930,22 @@ npm run test:coverage     # With coverage report
 | Edge Cases | 31 | Zero data, large volume, concurrency, float precision, timezone |
 | **Total** | **96** | **~82% overall** |
 
-### Frontend Tests (42 tests, 1 suite)
+### Frontend Tests (102 tests, 6 suites)
 
 ```bash
-npm run test:sms          # SMS parser test suite
+npm test              # All frontend tests
+npm run test:sms      # SMS parser test suite only
 ```
 
-| Test Group | Tests | Description |
-|-----------|-------|-------------|
-| normalizeMessage | 3 | Zero-width chars, ₹ normalization, INR normalization |
-| detectSenderMetadata | 4 | HDFC, SBI, unknown, empty |
-| classifyMessageType | 6 | Debit, credit, OTP, balance, promo, failed |
-| parseStrictDecimal | 7 | Valid int, decimal, comma, malformed, empty, text, multi-dot |
-| extractFields | 3 | Amount, timestamp, multiple amounts |
-| Full Pipeline (200 samples) | 10 | Accuracy ≥95%, FP ≤3%, debit ≥95%, credit ≥90%, OTP 100%, promo 100%, merchant extraction |
-| Edge Cases | 9 | Empty, short, MAX/MIN bounds, zero, malformed, unrecognized sender, multi-amount |
-| **Total** | **42** | **99% accuracy achieved** |
+| Suite | Tests | Covers |
+|-------|-------|--------|
+| `tests/sms/smsParser.test.ts` | 42 | normalizeMessage, sender detection, message classification, strict decimal parsing, field extraction, 200-sample full pipeline (accuracy ≥95%, FP ≤3%), edge cases |
+| `tests/receipt/parseReceipt.test.ts` | 16 | Amount extraction (weighted labels), merchant/date extraction, confidence, candidate amounts, negatives/identifiers, malformed text |
+| `tests/export/exportFormat.test.ts` | 16 | csvCell escaping, toCSV signing/headers/labels/trailing newline, summarise (grouping, empty set), selectForExport windowing/sort, HTML escaping |
+| `tests/budget/thresholds.test.ts` | 12 | findCrossings: warn at ≥80%, exceeded at ≥100%, once-per-month dedup, no double-fire, disabled thresholds, empty scopes |
+| `tests/expense/bulkDelete.test.ts` | 4 | deleteExpenses removes from items + pendingQueue, empty selection no-op |
+| `tests/stats/stats.test.ts` | 12 | totalsForMonth (boundaries), monthOverMonthChange (new spending, zeros, negative change) |
+| **Total** | **102** | |
 
 ---
 
@@ -870,6 +987,8 @@ The `simulateBulkSms(count)` utility (dev-only) measures:
 - [x] Graceful shutdown (SIGTERM/SIGINT handlers)
 - [x] No SMS content logged or transmitted (Android feature)
 - [x] SMS parsing is entirely local — raw message never leaves parser scope
+- [x] CSV escaping prevents formula injection / column breakage in exports
+- [x] HTML escaping prevents markup breaking PDFs generated from transaction data
 
 ---
 
@@ -887,7 +1006,7 @@ This section documents the privacy architecture of the Android SMS detection fea
 
 4. **User-controlled**: The feature is disabled by default. Users must explicitly navigate to Settings → SMS Detection and toggle it on. A permission rationale is displayed before the Android permission dialog.
 
-5. **Revocable**: Users can disable the feature at any time. Disabling clears all stored detection data including the deduplication cache.
+5. **Revocable**: Users can disable the feature at any time. Disabling clears all stored detection data including the deduplication cache and disables auto-add.
 
 6. **Minimal permissions**: Only `READ_SMS` and `RECEIVE_SMS` are requested. No access to contacts, call logs, or other sensitive data.
 
@@ -908,20 +1027,24 @@ finalAssignment/
 │   │   ├── login.tsx                 # Login screen
 │   │   └── register.tsx              # Register screen
 │   ├── (tabs)/
-│   │   ├── _layout.tsx               # Tab bar layout (Home, Txns, Analytics, Account)
-│   │   ├── index.tsx                 # Home screen
-│   │   ├── transactions.tsx          # Transaction list + filter
+│   │   ├── _layout.tsx               # Tab bar (Home, Transactions, Analytics, Account)
+│   │   ├── index.tsx                 # Home screen (balance + month stats)
+│   │   ├── transactions.tsx          # List + search + filter + bulk-delete selection
 │   │   ├── analytics.tsx             # Spending charts + insights
-│   │   └── account.tsx               # Profile, budget, settings
+│   │   └── account.tsx               # Profile, budgets, insights, export, settings
 │   ├── expense/
-│   │   ├── add.tsx                   # Add expense modal
-│   │   └── [id].tsx                  # Edit expense modal
+│   │   ├── add.tsx                   # Add expense modal (accepts scan prefill)
+│   │   ├── [id].tsx                  # Edit expense modal
+│   │   └── scan.tsx                  # Receipt camera → OCR → prefill
 │   ├── settings/
-│   │   └── sms-detection.tsx         # SMS detection settings (Android)
-│   ├── _layout.tsx                   # Root: Redux, fonts, auth routing, SMS listener
+│   │   ├── sms-detection.tsx         # SMS detection + auto-add settings (Android)
+│   │   ├── appearance.tsx            # Light / dark / system theme
+│   │   └── notifications.tsx         # Notification preferences
 │   ├── budgets.tsx                   # Category budgets CRUD
 │   ├── insights.tsx                  # Advanced insights screen
-│   └── notifications.tsx             # Notifications (placeholder)
+│   ├── export.tsx                    # Export transactions (CSV / PDF)
+│   ├── notifications.tsx             # In-app notification feed
+│   └── _layout.tsx                   # Root: ThemeProvider, Redux, fonts, auth routing, listeners
 │
 ├── src/
 │   ├── components/
@@ -940,109 +1063,130 @@ finalAssignment/
 │   │   ├── home/
 │   │   │   ├── BalanceCard.tsx       # Balance display
 │   │   │   ├── SpendingWallet.tsx    # Wallet card
-│   │   │   └── TransactionItem.tsx   # Transaction row
+│   │   │   └── TransactionItem.tsx   # Transaction row (selectable)
 │   │   ├── navigation/
 │   │   │   └── CurvedTabBar.tsx      # Custom tab bar (SVG)
 │   │   ├── sms/
-│   │   │   └── SmsTransactionModal.tsx # SMS confirmation modal
+│   │   │   ├── SmsTransactionModal.tsx # SMS confirmation modal
+│   │   │   └── AutoAddToast.tsx      # Undo toast for auto-logged SMS txns
 │   │   └── sync/
 │   │       └── SyncIndicator.tsx     # Sync status display
 │   │
 │   ├── services/
 │   │   ├── sms/                      # SMS parsing pipeline
 │   │   │   ├── types.ts              # Types, interfaces, guardrail constants
-│   │   │   ├── patterns.ts           # All regex patterns (25+ ignore, 40+ bank, debit/credit/merchant)
+│   │   │   ├── patterns.ts           # Regex patterns (25+ ignore, 40+ bank, debit/credit/merchant)
 │   │   │   ├── pipeline.ts           # 5-stage pipeline functions
 │   │   │   ├── confidence.ts         # Weighted scoring engine (configurable)
 │   │   │   ├── deduplication.ts      # LRU hash cache (AsyncStorage-backed)
 │   │   │   ├── parser.ts             # Pipeline orchestrator
 │   │   │   └── index.ts              # Barrel exports
+│   │   ├── receipt/
+│   │   │   ├── ocr.ts                # ML Kit OCR provider layer (optional)
+│   │   │   └── parseReceipt.ts       # Heuristic receipt-text parser (amount/merchant/date)
+│   │   ├── budgetAlerts.ts           # Budget threshold alerts (side effects)
+│   │   ├── budgetThresholds.ts       # Pure threshold logic (unit-tested)
 │   │   ├── categoryDetector.ts       # 100+ keyword → category mappings
-│   │   ├── smsListener.ts           # Android SMS listener (singleton, debounced)
-│   │   ├── smsParser.ts             # Backward-compatible re-export
-│   │   ├── smsPermission.ts         # Android permission flow
-│   │   └── syncEngine.ts            # Offline sync (NetInfo + AsyncStorage)
+│   │   ├── exportFormat.ts           # Pure CSV / HTML export formatting (testable)
+│   │   ├── export.ts                 # exportCSV / exportPDF (file, print, share)
+│   │   ├── notifications.ts          # Local notifications (channel, prefs, Expo Go guard)
+│   │   ├── smsListener.ts            # Android SMS listener (singleton, debounced, auto-add)
+│   │   ├── smsParser.ts              # Backward-compatible re-export
+│   │   ├── smsPermission.ts          # Android permission flow
+│   │   └── syncEngine.ts             # Offline sync (backoff, tombstones, paged pull)
 │   │
 │   ├── store/
 │   │   ├── api/
-│   │   │   └── apiClient.ts         # Axios instance + JWT interceptor
+│   │   │   └── apiClient.ts          # Axios instance + JWT interceptor
 │   │   ├── slices/
-│   │   │   ├── authSlice.ts          # Auth state + persistence
-│   │   │   ├── expenseSlice.ts       # Expenses + offline queue
-│   │   │   ├── budgetSlice.ts        # Budget async thunks
-│   │   │   ├── insightSlice.ts       # Insights async thunk
-│   │   │   ├── syncSlice.ts          # Network + sync state
-│   │   │   └── smsSlice.ts           # SMS detection state
-│   │   ├── hooks.ts                  # Typed Redux hooks
-│   │   └── index.ts                  # Store configuration
+│   │   │   ├── authSlice.ts           # Auth state + persistence
+│   │   │   ├── expenseSlice.ts        # Expenses + offline queue + tombstones + bulk delete
+│   │   │   ├── budgetSlice.ts         # Budget async thunks
+│   │   │   ├── insightSlice.ts        # Insights async thunk
+│   │   │   ├── syncSlice.ts           # Network + sync state
+│   │   │   ├── smsSlice.ts            # SMS detection + auto-add state
+│   │   │   └── notificationSlice.ts   # In-app notification feed (cap 50)
+│   │   ├── hooks.ts                   # Typed Redux hooks
+│   │   ├── persistMiddleware.ts       # AsyncStorage persistence outside reducers
+│   │   └── index.ts                   # Store configuration
 │   │
 │   ├── theme/
-│   │   └── index.ts                  # Colors, typography, spacing, shadows, categories
+│   │   ├── colors.ts                  # Light + dark palettes, categories, payment methods
+│   │   ├── ThemeContext.tsx           # ThemeProvider / useTheme (mode persisted)
+│   │   ├── makeStyles.ts              # Theme-aware style factory (memoized per palette)
+│   │   └── index.ts                   # Colors, typography, spacing, shadows, elevation
 │   │
 │   └── utils/
-│       └── formatters.ts             # Currency, date, percentage formatters
+│       ├── formatters.ts              # Currency, date, percentage formatters
+│       ├── id.ts                      # newId() — uuid-backed localIds
+│       └── stats.ts                   # Local month totals + month-over-month change
 │
 ├── tests/
-│   └── sms/
-│       ├── samples.ts                # 200 SMS samples (120 debit, 40 credit, 20 OTP, 20 promo)
-│       └── smsParser.test.ts         # Full test harness + accuracy calculator
+│   ├── budget/thresholds.test.ts      # 12 tests — budget alert threshold logic
+│   ├── expense/bulkDelete.test.ts     # 4 tests — bulk delete reducer
+│   ├── export/exportFormat.test.ts    # 16 tests — CSV/PDF formatting
+│   ├── receipt/parseReceipt.test.ts   # 16 tests — receipt parser
+│   ├── sms/
+│   │   ├── samples.ts                 # 200 SMS samples (120 debit, 40 credit, 20 OTP, 20 promo)
+│   │   └── smsParser.test.ts          # 42 tests — pipeline + accuracy harness
+│   └── stats/stats.test.ts            # 12 tests — month stats helpers
 │
 ├── server/
 │   ├── config/
-│   │   ├── db.js                     # MongoDB connection
-│   │   ├── environment.js            # Centralized env config (dynamic getters)
-│   │   └── logger.js                 # Winston logger
+│   │   ├── db.js                      # MongoDB connection
+│   │   ├── environment.js             # Centralized env config (dynamic getters)
+│   │   └── logger.js                  # Winston logger
 │   ├── controllers/
-│   │   ├── authController.js         # Auth: register, login, profile
-│   │   ├── expenseController.js      # Expenses: CRUD, sync, insights
-│   │   ├── budgetController.js       # Budgets: CRUD
-│   │   └── insightController.js      # Advanced insights
+│   │   ├── authController.js          # Auth: register, login, profile
+│   │   ├── expenseController.js       # Expenses: CRUD, sync, insights
+│   │   ├── budgetController.js        # Budgets: CRUD
+│   │   └── insightController.js       # Advanced insights
 │   ├── middleware/
-│   │   ├── auth.js                   # JWT verification (protect)
-│   │   ├── errorHandler.js           # AppError + centralized handler
-│   │   ├── rateLimiter.js            # API + auth rate limiters
-│   │   └── validate.js               # Joi body + query validation
+│   │   ├── auth.js                    # JWT verification (protect)
+│   │   ├── errorHandler.js            # AppError + centralized handler
+│   │   ├── rateLimiter.js             # API + auth rate limiters
+│   │   └── validate.js                # Joi body + query validation
 │   ├── models/
-│   │   ├── User.js                   # User schema + bcrypt hooks
-│   │   ├── Expense.js                # Expense schema + 6 indexes
-│   │   └── Budget.js                 # Budget schema + virtuals + unique index
+│   │   ├── User.js                    # User schema + bcrypt hooks
+│   │   ├── Expense.js                 # Expense schema + 6 indexes
+│   │   └── Budget.js                  # Budget schema + virtuals + unique index
 │   ├── routes/
-│   │   ├── auth.js                   # Auth routes + validation + rate limit
-│   │   ├── expenses.js               # Expense routes + validation
-│   │   ├── budgets.js                # Budget routes + validation
-│   │   └── insights.js               # Insights route
+│   │   ├── auth.js                    # Auth routes + validation + rate limit
+│   │   ├── expenses.js                # Expense routes + validation
+│   │   ├── budgets.js                 # Budget routes + validation
+│   │   └── insights.js                # Insights route
 │   ├── services/
-│   │   ├── expense.service.js        # Expense CRUD + pagination + budget hooks
-│   │   ├── budget.service.js         # Budget CRUD + recalculation
-│   │   ├── insight.service.js        # Aggregation pipelines + z-score
-│   │   ├── recurring.service.js      # Idempotent recurring processor
-│   │   └── cron.service.js           # node-cron hourly scheduler
+│   │   ├── expense.service.js         # Expense CRUD + pagination + budget hooks
+│   │   ├── budget.service.js          # Budget CRUD + recalculation
+│   │   ├── insight.service.js         # Aggregation pipelines + z-score
+│   │   ├── recurring.service.js       # Idempotent recurring processor
+│   │   └── cron.service.js            # node-cron hourly scheduler
 │   ├── validators/
-│   │   ├── auth.validator.js         # Joi schemas for auth
-│   │   ├── expense.validator.js      # Joi schemas for expenses
-│   │   └── budget.validator.js       # Joi schemas for budgets
+│   │   ├── auth.validator.js          # Joi schemas for auth
+│   │   ├── expense.validator.js       # Joi schemas for expenses
+│   │   └── budget.validator.js        # Joi schemas for budgets
 │   ├── tests/
-│   │   ├── setup.js                  # mongodb-memory-server lifecycle
-│   │   ├── helpers.js                # Test factories
-│   │   ├── unit/                     # 4 service test files (48 tests)
-│   │   ├── integration/              # API test file (17 tests)
-│   │   ├── edge/                     # Edge case file (31 tests)
-│   │   └── performance/              # Artillery config
+│   │   ├── setup.js                   # mongodb-memory-server lifecycle
+│   │   ├── helpers.js                 # Test factories
+│   │   ├── unit/                      # 4 service test files (48 tests)
+│   │   ├── integration/               # API test file (17 tests)
+│   │   ├── edge/                      # Edge case file (31 tests)
+│   │   └── performance/               # Artillery config
 │   ├── docs/
-│   │   └── postman_collection.json   # Full Postman collection
-│   ├── app.js                        # Express app factory
-│   ├── index.js                      # Server entry + cron + graceful shutdown
-│   ├── jest.config.js                # Backend Jest config
-│   ├── Dockerfile                    # Node 20-alpine image
-│   ├── render.yaml                   # Render.com deployment
-│   └── .env.example                  # Example env variables
+│   │   └── postman_collection.json    # Full Postman collection
+│   ├── app.js                         # Express app factory
+│   ├── index.js                       # Server entry + cron + graceful shutdown
+│   ├── jest.config.js                 # Backend Jest config
+│   ├── Dockerfile                     # Node 20-alpine image
+│   ├── render.yaml                    # Render.com deployment
+│   └── .env.example                   # Example env variables
 │
-├── app.json                          # Expo config
-├── eas.json                          # EAS Build profiles
-├── jest.config.js                    # Frontend Jest config
-├── tsconfig.json                     # TypeScript config
-├── package.json                      # Frontend dependencies
-└── .gitignore                        # Git ignores
+├── app.json                           # Expo config (camera permission, splash)
+├── eas.json                           # EAS Build profiles
+├── jest.config.js                     # Frontend Jest config
+├── tsconfig.json                      # TypeScript config
+├── package.json                       # Frontend dependencies
+└── .gitignore                         # Git ignores
 ```
 
 ---
@@ -1087,8 +1231,8 @@ npx expo start --tunnel
 # Backend (96 tests)
 cd server && npm test
 
-# Frontend SMS parser (42 tests)
-cd .. && npm run test:sms
+# Frontend (102 tests)
+cd .. && npm test
 ```
 
 ---
@@ -1122,6 +1266,8 @@ Build profiles defined in `eas.json`:
 - `preview` — Internal distribution
 - `production` — Store-ready build
 
+> **Note:** receipt OCR (`@react-native-ml-kit/text-recognition`) requires a custom dev build (Expo Go falls back to photo attach + manual amount). SMS detection requires a development/production build on Android — it will not work in Expo Go.
+
 ---
 
 ## Environment Variables
@@ -1142,20 +1288,28 @@ Build profiles defined in `eas.json`:
 
 ## Design System
 
-### Color Palette
+### Color Palette (Light / Dark)
 
-| Token | Value | Usage |
-|-------|-------|-------|
-| `primary` | `#8A64EB` | Buttons, accents, active states |
-| `primaryDark` | `#181026` | Primary button background |
-| `primaryLight` | `#9D85FF` | Light accent |
-| `secondary` | `#C7F2A4` | Lime green accent |
-| `background` | `#F8F9FE` | Screen background |
-| `cardBg` | `#FFFFFF` | Card background |
-| `success` | `#4CD964` | Income, positive indicators |
-| `error` | `#FF3B30` | Expense, over-budget, errors |
-| `warning` | `#FF9500` | Warnings, alerts |
-| `info` | `#007AFF` | Informational elements |
+| Token | Light | Dark | Usage |
+|-------|-------|------|-------|
+| `primary` | `#8A64EB` | `#A98BFF` | Buttons, accents, active states |
+| `primaryDark` | `#181026` | `#0E0916` | Primary button background |
+| `primaryLight` | `#9D85FF` | `#C4A6FE` | Light accent |
+| `gradientStart` | `#C4A6FE` | `#5B3FA8` | Gradient header start |
+| `gradientEnd` | `#8A64EB` | `#2E1F52` | Gradient header end |
+| `secondary` | `#C7F2A4` | `#A8D98A` | Lime green accent |
+| `background` | `#F8F9FE` | `#0F0D14` | Screen background |
+| `cardBg` | `#FFFFFF` | `#1A1720` | Card background |
+| `inputBg` | `#F2F4F8` | `#232029` | Input background |
+| `border` | `#ECEEF5` | `#302B3A` | Borders/dividers |
+| `textMain` | `#1C1C1E` | `#F2F0F7` | Primary text |
+| `textSecondary` | `#8E8E93` | `#9B95A8` | Secondary text |
+| `success` | `#4CD964` | `#3ED16A` | Income, positive indicators |
+| `error` | `#FF3B30` | `#FF6961` | Expense, over-budget, errors |
+| `warning` | `#FF9500` | `#FFA726` | Warnings, alerts |
+| `info` | `#007AFF` | `#4DA3FF` | Informational elements |
+| `overlay` | `rgba(0,0,0,0.5)` | `rgba(0,0,0,0.7)` | Modal overlay |
+| `glass` | `rgba(255,255,255,0.3)` | `rgba(255,255,255,0.08)` | Chips on gradients |
 
 ### Typography
 
@@ -1184,6 +1338,12 @@ Cash, Credit Card, Debit Card, Bank Transfer, UPI, Other
 | Regex-based SMS parsing | ML/NLP model | Deterministic, testable, zero-dependency, 99% accuracy on 200 samples |
 | Confidence scoring over binary detection | Hard pass/fail | Reduces false positives to 0% while catching 99% of real transactions |
 | LRU dedup cache (200 entries) | Bloom filter / server-side dedup | Client-only, no network, fits in AsyncStorage, simple eviction |
+| Persistence in Redux middleware | Persist inside reducers | Keeps reducers pure and unit-testable; persistence becomes an audit-able concern |
+| Auto-add above 0.9 confidence | Always confirm first | Catches the common case with zero taps; undo toast makes reversibility trivial |
+| Optional ML Kit OCR (dev build only) | Cloud OCR always | Free + fully offline; graceful fallback to photo attach keeps Expo Go usable |
+| Local HTML+print PDF export | Native PDF libs | Zero-dependency, one reusable template, bundle-safe |
+| makeStyles() (memoized per palette) | useMemo + hardcoded colors | Runtime theme switch works without tearing down components |
+| Thrust of threshold logic to pure module | Alerts in a component | `findCrossings` is unit-tested in isolation; side effects stay in `budgetAlerts` |
 | React Compiler (experimental) | Manual React.memo/useMemo | Automatic optimization with zero manual intervention |
 
 ---
@@ -1197,7 +1357,8 @@ Cash, Credit Card, Debit Card, Bank Transfer, UPI, Other
 5. **CDC**: Change Data Capture for real-time budget recalculation
 6. **Sharding**: Shard by user_id when hitting single-node limits
 7. **SMS ML Model**: Replace regex patterns with a trained classifier for >99.5% accuracy
-8. **Push Notifications**: Firebase Cloud Messaging for budget alerts and recurring reminders
+8. **Push Notifications**: FCM/Expo push for budget alerts and recurring reminders instead of local-only notifications
+9. **Cloud OCR**: Swap the ML Kit provider in `ocr.ts` for a cloud endpoint when higher accuracy is needed
 
 ---
 
