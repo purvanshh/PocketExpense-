@@ -16,6 +16,9 @@ const insightRoutes = require('./routes/insights');
 const createApp = () => {
     const app = express();
 
+    // Trust reverse proxy headers to get correct client IP address
+    app.set('trust proxy', true);
+
     // Security headers
     app.use(helmet());
 
@@ -32,7 +35,8 @@ const createApp = () => {
     // Request logging (skip in test to reduce noise)
     if (environment.nodeEnv !== 'test') {
         app.use((req, res, next) => {
-            logger.debug(`${req.method} ${req.originalUrl}`, { ip: req.ip });
+            const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
+            logger.info(`${req.method} ${req.originalUrl} - Client IP: ${ip}`);
             next();
         });
     }

@@ -1,14 +1,32 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
-// IMPORTANT: When using Expo Go on a physical device or emulator,
-// you need to use your computer's actual IP address
-// Find your IP: run `ifconfig` or check System Preferences > Network
+import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 
-const YOUR_IP = '192.168.0.102';
-const PORT = '5001';
+// Dynamically determine the API base URL to prevent ERR_NETWORK errors when the IP changes
+const getBaseUrl = () => {
+    const PORT = '5001';
+    
+    // 1. Try to get the IP address from Expo's dev server configuration
+    const hostUri = Constants.expoConfig?.hostUri;
+    if (hostUri) {
+        const ip = hostUri.split(':')[0];
+        console.log(`📡 Dynamically resolved host IP from Expo: ${ip}`);
+        return `http://${ip}:${PORT}/api`;
+    }
 
-const BASE_URL = `http://${YOUR_IP}:${PORT}/api`;
+    // 2. Fallback depending on the platform/environment
+    if (Platform.OS === 'android') {
+        console.log('📡 Using Android emulator loopback alias (10.0.2.2)');
+        return `http://10.0.2.2:${PORT}/api`; // Android emulator loopback
+    }
+    
+    console.log('📡 Using localhost loopback');
+    return `http://localhost:${PORT}/api`; // iOS simulator or web
+};
+
+const BASE_URL = getBaseUrl();
 
 const apiClient = axios.create({
     baseURL: BASE_URL,

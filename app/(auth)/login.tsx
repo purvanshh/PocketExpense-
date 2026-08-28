@@ -38,11 +38,18 @@ export default function LoginScreen() {
         }
 
         setIsLoading(true);
+        console.log('🚀 Starting login...');
+        console.log('📧 Email:', email.toLowerCase().trim());
+
         try {
+            console.log('📡 Making API request to /auth/login...');
             const response = await apiClient.post('/auth/login', {
                 email: email.toLowerCase().trim(),
                 password,
             });
+
+            console.log('✅ Login successful!');
+            console.log('📦 Response data:', JSON.stringify(response.data, null, 2));
 
             const { _id, name, email: userEmail, budgetLimit, currency, avatar, token } = response.data.data;
 
@@ -55,8 +62,25 @@ export default function LoginScreen() {
 
             router.replace('/(tabs)');
         } catch (error: any) {
-            const message = error.response?.data?.message || 'Login failed. Please try again.';
-            Alert.alert('Error', message);
+            console.log('❌ Login failed!');
+            console.log('🔴 Error object:', error);
+            console.log('🔴 Error message:', error.message);
+            console.log('🔴 Error code:', error.code);
+            console.log('🔴 Error response status:', error.response?.status);
+            console.log('🔴 Error response data:', JSON.stringify(error.response?.data, null, 2));
+            console.log('🔴 Error request:', error.request ? 'Request was made but no response' : 'Request failed to send');
+
+            let message = 'Login failed. Please try again.';
+
+            if (error.code === 'ECONNABORTED') {
+                message = 'Connection timed out. Check if the server is running.';
+            } else if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+                message = 'Network error. Check your connection and server IP address.';
+            } else if (error.response?.data?.message) {
+                message = error.response.data.message;
+            }
+
+            Alert.alert('Login Error', `${message}\n\nDetails: ${error.message}`);
             dispatch(setError(message));
         } finally {
             setIsLoading(false);
